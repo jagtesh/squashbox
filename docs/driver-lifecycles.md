@@ -1,7 +1,7 @@
 # Squashbox Driver Lifecycles
 
 This document maps the complete lifecycle of every filesystem action through both the
-Windows (ProjFS via `windows-projfs`) and macOS (FSKit via `fskit-rs` + FSKitBridge) drivers.
+Windows (ProjFS via `windows-projfs`) and macOS (FSKit via UniFFI + Swift appex) drivers.
 
 ---
 
@@ -36,26 +36,24 @@ User runs: squashbox mount image.sqsh C:\mount\point
              internal threads managed by windows-projfs)
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 User runs: squashbox mount image.sqsh /tmp/mount_point
 
-1. TRIGGER:  CLI sends mount request to FSKitBridge (the Swift appex)
-2. BRIDGE:   FSKitBridge receives XPC activation from launchd
-             Opens TCP localhost connection to Rust backend
-3. PROTOCOL: fskit-rs session::mount() is called
-4. TRAIT:    Filesystem::activate(options) is called
-             → Core opens .sqsh file, returns root Item { id: ROOT_INODE, ... }
-5. TRAIT:    Filesystem::mount(TaskOptions) is called
-             → Confirms ready for I/O
-6. TRAIT:    Filesystem::get_resource_identifier() → ResourceIdentifier
-             Filesystem::get_volume_identifier() → VolumeIdentifier
-             Filesystem::get_volume_behavior()   → VolumeBehavior { read_only: true }
-             Filesystem::get_volume_capabilities() → SupportedCapabilities
-             Filesystem::get_volume_statistics() → StatFsResult
-7. OS:       Volume appears in Finder / mount table
-8. STATE:    Tokio runtime serves protobuf messages over TCP until unmount
+1. TRIGGER:  CLI invokes the FSKit app extension (SquashboxFS.appex)
+2. APPEX:    macOS activates the app extension via XPC (launchd-managed)
+             Swift FSUnaryFileSystem subclass receives loadResource() callback
+3. SWIFT:    Calls SquashboxCore.open(imagePath) via UniFFI-generated Swift bindings
+             → This is an in-process FFI call into the Rust static library
+             → Rust opens .sqsh, builds inode index, returns handle
+4. FSKIT:    FSKit calls didFinishLoading(), then volume query methods:
+             → volumeName()           → reads from Rust core
+             → volumeStatistics()     → calls provider.volume_stats() via FFI
+             → volumeCapabilities()   → returns read-only capability set
+5. OS:       Volume appears in Finder / mount table
+6. STATE:    The app extension stays alive, serving FSKit callbacks.
+             Each callback maps to an in-process FFI call into Rust.
 ```
 
 ---
@@ -79,19 +77,17 @@ User runs: squashbox mount image.sqsh /tmp/mount_point
              Explorer renders the file listing
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  User opens /tmp/mount_point/some/dir in Finder
-2. OS:       VFS calls readdir → FSKit → FSKitBridge → TCP → fskit-rs
-3. DRIVER:   Filesystem::enumerate_directory(directory_id, cookie, verifier)
-             → directory_id = inode of "some/dir"
-             → cookie = 0 for first batch, >0 for continuation
-4. CORE:     Reads directory entries from inode directory_id
-             Returns paginated list starting at cookie offset
-5. DRIVER:   Maps each entry to DirectoryEntries { entries: [...], cookie, verifier }
-             Each entry is an Item { id, name, attributes: ItemAttributes { ... } }
-6. OS:       FSKit sends entries back through XPC
+2. OS:       VFS calls readdir → FSKit → Swift appex (in-process)
+3. SWIFT:    FSUnaryFileSystem.enumerateDirectory(identifier:cookie:)
+             calls SquashboxCore.listDirectory(inodeId:cookie:) via FFI
+4. CORE:     Reads directory entries from inode, returns paginated list
+5. SWIFT:    Maps each returned entry to FSItemAttributes for FSKit
+             Returns FSDirectoryEntryBatch to FSKit
+6. OS:       FSKit sends entries back to kernel via XPC
              Finder renders the file listing
 ```
 
@@ -114,24 +110,24 @@ User runs: squashbox mount image.sqsh /tmp/mount_point
              Returns to the calling application
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  Application calls stat() on a file
-2. OS:       VFS calls getattr → FSKit → FSKitBridge → TCP → fskit-rs
-3. DRIVER:   Two possible paths:
+2. OS:       VFS calls getattr → FSKit → Swift appex (in-process)
+3. SWIFT:    Two possible paths:
 
-             a) Filesystem::lookup_item(name: &OsStr, directory_id: u64)
+             a) FSUnaryFileSystem.lookUp(name:inDirectory:)
+                calls SquashboxCore.lookup(parentInode:name:) via FFI
                 → Resolves name within parent directory
-                → Returns Item { id, name, attributes }
+                → Returns item with (inode, type, size, mode, timestamps)
 
-             b) Filesystem::get_attributes(item_id: u64)
+             b) FSUnaryFileSystem.getAttributes(of:)
+                calls SquashboxCore.getAttributes(inodeId:) via FFI
                 → Retrieves attributes for a known inode
-                → Returns ItemAttributes { size, mode, uid, gid, timestamps, ... }
 
-4. CORE:     Reads inode metadata from .sqsh
-5. DRIVER:   Returns Item or ItemAttributes with SquashFS metadata mapped to
-             POSIX stat fields
+4. CORE:     Reads inode metadata from .sqsh (in-process, zero serialization)
+5. SWIFT:    Maps Rust EntryAttributes → FSItemAttributes
 6. OS:       VFS populates stat buffer, returns to application
 ```
 
@@ -161,27 +157,27 @@ NOTE: ProjFS hydrates entire files (or large chunks). Once hydrated, the
 file is served from the local filesystem until the placeholder is reset.
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  Application calls read() on an open file descriptor
-2. OS:       VFS calls read → FSKit → FSKitBridge → TCP → fskit-rs
-3. DRIVER:   Filesystem::open_item(item_id: u64, modes: Vec<OpenMode>)
-             → Called once when file is first opened
-             → Returns Ok(()) for read-only access
-
-             Filesystem::read(item_id: u64, offset: i64, length: i64)
-             → Called for each read() syscall
+2. OS:       VFS calls read → FSKit → Swift appex (in-process)
+3. SWIFT:    FSUnaryFileSystem.read(from:offset:length:into:)
+             calls SquashboxCore.readFile(inodeId:offset:length:) via FFI
+             → Direct function call across FFI boundary — no serialization,
+               no TCP, no Protobuf. Just a C-ABI call into the Rust static library.
 4. CORE:     Seeks to offset within SquashFS file data
              Decompresses requested blocks
-             Returns Vec<u8> of the requested range
-5. DRIVER:   Returns the byte vector
-6. OS:       FSKit sends data back through XPC
+             Returns byte buffer (Data / UnsafeBufferPointer across FFI)
+5. SWIFT:    Writes bytes directly into FSKit's provided buffer
+6. OS:       FSKit returns data to kernel via XPC
              VFS copies to user buffer, returns to application
 
 NOTE: FSKit is request-per-read — no local hydration cache like ProjFS.
-Each read() goes through the full path. Consider implementing a
-block cache in the core layer for performance.
+Each read() goes through the full path. The critical difference from fskit-rs
+is that the Rust core runs in-process with the Swift appex — no TCP/Protobuf
+overhead per read(). Consider implementing a block cache in the core layer
+for SquashFS decompression performance.
 ```
 
 ---
@@ -202,15 +198,16 @@ For Squashbox, option (c) is simplest: the core resolves symlinks during
 path traversal before returning entries/content to the ProjFS driver.
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  Application accesses a symlink (readlink or follows it)
-2. OS:       VFS calls readlink → FSKit → FSKitBridge → TCP → fskit-rs
-3. DRIVER:   Filesystem::read_symbolic_link(item_id: u64)
+2. OS:       VFS calls readlink → FSKit → Swift appex (in-process)
+3. SWIFT:    FSUnaryFileSystem.readSymbolicLink(of:)
+             calls SquashboxCore.readSymlink(inodeId:) via FFI
 4. CORE:     Reads symlink target from SquashFS inode
-             Returns target path as bytes
-5. DRIVER:   Returns Ok(Vec<u8>) containing the symlink target
+             Returns target path as string
+5. SWIFT:    Converts String → Data, returns to FSKit
 6. OS:       VFS follows the link or returns the target to the caller
 ```
 
@@ -228,16 +225,16 @@ For Squashbox: xattrs from the SquashFS image are not surfaced on Windows.
 This is acceptable — most Windows applications don't expect xattrs.
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  Application calls getxattr() / listxattr()
-2. OS:       VFS calls getxattr → FSKit → FSKitBridge → TCP → fskit-rs
-3. DRIVER:   Filesystem::get_supported_xattr_names(item_id: u64) → Xattrs
-             Filesystem::get_xattr(name: &OsStr, item_id: u64) → Vec<u8>
-             Filesystem::get_xattrs(item_id: u64) → Xattrs
+2. OS:       VFS calls getxattr → FSKit → Swift appex (in-process)
+3. SWIFT:    FSUnaryFileSystem.xattrNames(of:) / getXattr(named:of:)
+             calls SquashboxCore.listXattrs(inodeId:) via FFI
+             or    SquashboxCore.getXattr(inodeId:name:) via FFI
 4. CORE:     Reads xattr data from SquashFS inode metadata
-5. DRIVER:   Returns xattr names and/or values
+5. SWIFT:    Returns xattr names and/or values to FSKit
 6. OS:       VFS returns to application
 ```
 
@@ -255,15 +252,16 @@ For Squashbox: all projected files inherit the root directory's
 permissions. This is the expected ProjFS behavior.
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  Application calls access() or VFS checks permissions
-2. OS:       VFS calls access → FSKit → FSKitBridge → TCP → fskit-rs
-3. DRIVER:   Filesystem::check_access(item_id: u64, access: Vec<AccessMask>)
+2. OS:       VFS calls access → FSKit → Swift appex (in-process)
+3. SWIFT:    FSUnaryFileSystem.checkAccess(to:operations:)
+             calls SquashboxCore.checkAccess(inodeId:mask:) via FFI
 4. CORE:     Reads mode bits from SquashFS inode
              Compares against requested access mask
-5. DRIVER:   Returns Ok(true) if allowed, Ok(false) if denied
+5. SWIFT:    Returns allowed/denied to FSKit
 6. OS:       VFS allows or denies the operation
 ```
 
@@ -282,14 +280,15 @@ permissions. This is the expected ProjFS behavior.
 5. OS:       ProjFS returns STATUS_ACCESS_DENIED to the application
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  User tries to write/create/delete
-2. OS:       VFS calls write/create/remove → FSKit → fskit-rs
-3. DRIVER:   Filesystem::write() / create_item() / remove_item() / etc.
-4. DRIVER:   Returns Err(Error::Posix(libc::EROFS))  // Read-only filesystem
-5. OS:       VFS returns EROFS to application
+2. OS:       VFS calls write/create/remove → FSKit → Swift appex (in-process)
+3. SWIFT:    Write-related FSUnaryFileSystem methods
+             → Do NOT call into Rust core at all
+             → Immediately return NSError with POSIX EROFS
+4. OS:       VFS returns EROFS to application
 ```
 
 ---
@@ -309,16 +308,16 @@ permissions. This is the expected ProjFS behavior.
              (ProjFS leaves .git-style metadata files)
 ```
 
-### macOS (FSKit via fskit-rs)
+### macOS (FSKit via UniFFI)
 
 ```
 1. TRIGGER:  User runs: squashbox unmount /tmp/mount_point
              Or: diskutil unmount /tmp/mount_point
-2. OS:       VFS calls unmount → FSKit → FSKitBridge → TCP → fskit-rs
-3. DRIVER:   Filesystem::unmount() → Ok(())
-             Filesystem::deactivate() → Ok(())
-4. DRIVER:   TCP session closes, tokio runtime shuts down
-5. CORE:     Drops SquashFs handle (closes .sqsh file)
+2. OS:       VFS calls unmount → FSKit → Swift appex (in-process)
+3. SWIFT:    FSUnaryFileSystem.unmount()
+             calls SquashboxCore.close() via FFI
+4. CORE:     Drops SquashFs handle (closes .sqsh file, frees inode index)
+5. APPEX:    App extension may be terminated by launchd (lifecycle-managed)
 6. OS:       Volume disappears from mount table / Finder
 ```
 
@@ -326,17 +325,17 @@ permissions. This is the expected ProjFS behavior.
 
 ## Lifecycle Summary Matrix
 
-| Action | Windows (ProjFS) | macOS (FSKit) |
-|--------|-----------------|---------------|
-| **Mount** | `ProjectedFileSystem::new().start()` | `activate()` → `mount()` → volume queries |
-| **List dir** | `list_directory(path)` | `enumerate_directory(dir_id, cookie, verifier)` |
-| **Stat file** | `get_directory_entry(path)` | `lookup_item(name, dir_id)` / `get_attributes(id)` |
-| **Read file** | `stream_file_content(path, offset, len)` | `open_item(id)` → `read(id, offset, len)` |
-| **Symlink** | Resolved transparently by core | `read_symbolic_link(id)` |
-| **Xattr** | Not supported | `get_xattr(name, id)` / `get_xattrs(id)` |
-| **Permissions** | Inherited from root ACL | `check_access(id, mask)` |
-| **Write (deny)** | `handle_notification() → Break` | Return `Err(EROFS)` |
-| **Unmount** | `ProjectedFileSystem::stop()` | `unmount()` → `deactivate()` |
+| Action | Windows (ProjFS) | macOS (FSKit via UniFFI) |
+|--------|-----------------|--------------------------|
+| **Mount** | `ProjectedFileSystem::new().start()` | `loadResource()` → FFI `open()` → volume queries |
+| **List dir** | `list_directory(path)` | `enumerateDirectory()` → FFI `listDirectory()` |
+| **Stat file** | `get_directory_entry(path)` | `lookUp()` → FFI `lookup()` / `getAttributes()` |
+| **Read file** | `stream_file_content(path, offset, len)` | `read()` → FFI `readFile()` |
+| **Symlink** | Resolved transparently by core | `readSymbolicLink()` → FFI `readSymlink()` |
+| **Xattr** | Not supported | `getXattr()` → FFI `getXattr()` / `listXattrs()` |
+| **Permissions** | Inherited from root ACL | `checkAccess()` → FFI `checkAccess()` |
+| **Write (deny)** | `handle_notification() → Break` | Return `EROFS` directly in Swift |
+| **Unmount** | `ProjectedFileSystem::stop()` | `unmount()` → FFI `close()` |
 
 ---
 
@@ -344,7 +343,7 @@ permissions. This is the expected ProjFS behavior.
 
 ### Addressing Model
 - **ProjFS**: Path-based — every callback receives a relative `&Path` from the virtualization root
-- **FSKit**: Inode-based — operations use `u64` item IDs (inode numbers), with `lookup_item()` resolving names to IDs
+- **FSKit**: Inode-based — operations use `u64` item IDs (inode numbers), with `lookUp()` resolving names to IDs
 
 ### Caching Model
 - **ProjFS**: Hydration-based — files are fully materialized to local disk on first access. Subsequent reads bypass the driver entirely
@@ -352,8 +351,12 @@ permissions. This is the expected ProjFS behavior.
 
 ### Concurrency Model
 - **ProjFS** (`windows-projfs`): Synchronous `&self` callbacks — the crate manages internal thread pool. Source must be `Sync`
-- **FSKit** (`fskit-rs`): Async `&mut self` callbacks via `async_trait` — runs on a tokio runtime. Messages are serialized over TCP
+- **FSKit** (UniFFI): Synchronous FFI calls from Swift into Rust — FSKit manages callback dispatch on its own queues. The Rust `VirtualFsProvider` is `Send + Sync` behind an `Arc`, so concurrent calls are safe
+
+### Interop Model
+- **ProjFS**: Pure Rust — `windows-projfs` wraps `Win32_Storage_ProjectedFileSystem` APIs via the `windows` crate
+- **FSKit**: Swift appex → Rust via UniFFI — the Rust core compiles as a `staticlib`, UniFFI generates idiomatic Swift bindings, the static library links directly into the FSKit app extension. **No IPC, no serialization, no bridge process**
 
 ### API Surface
 - **ProjFS**: **4 methods** (2 required + 2 optional). Very focused on "project this tree"
-- **FSKit**: **34 methods** (all required). Full POSIX filesystem surface. Many can return `ENOSYS` for read-only use
+- **FSKit**: **~15 FSUnaryFileSystem override methods** in Swift, each mapping 1:1 to a UniFFI-exported Rust function. Write methods return `EROFS` without calling into Rust

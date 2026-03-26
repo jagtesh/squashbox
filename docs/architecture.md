@@ -2,7 +2,7 @@
 
 This document defines the architecture through skeletal implementations — traits, structs,
 method signatures, and their interactions with the parent OS libraries (`windows-projfs`
-and `fskit-rs`).
+on Windows, FSKit + UniFFI on macOS).
 
 No business logic is implemented. The goal is to establish the contract between layers.
 
@@ -18,8 +18,10 @@ squashbox/
 │   │   │   ├── lib.rs
 │   │   │   ├── provider.rs      # VirtualFsProvider trait
 │   │   │   ├── types.rs         # Shared types (entries, attributes, errors)
-│   │   │   └── squashfs.rs      # backhand-backed implementation
-│   │   └── Cargo.toml
+│   │   │   ├── squashfs.rs      # backhand-backed implementation
+│   │   │   └── ffi.rs           # UniFFI-exported functions for macOS
+│   │   ├── src/squashbox_core.udl  # UniFFI interface definition
+│   │   └── Cargo.toml           # crate-type = ["lib", "staticlib"]
 │   │
 │   ├── squashbox-windows/       # Windows ProjFS driver
 │   │   ├── src/
@@ -27,18 +29,25 @@ squashbox/
 │   │   │   └── projfs_source.rs # ProjectedFileSystemSource impl
 │   │   └── Cargo.toml
 │   │
-│   ├── squashbox-macos/         # macOS FSKit driver (Rust side)
-│   │   ├── src/
-│   │   │   ├── main.rs          # Tokio entry point
-│   │   │   └── fskit_fs.rs      # Filesystem trait impl
-│   │   └── Cargo.toml
+│   ├── squashbox-macos/         # macOS FSKit driver (Swift appex)
+│   │   ├── SquashboxFS/
+│   │   │   ├── SquashboxFS.swift           # FSUnaryFileSystem subclass
+│   │   │   ├── Info.plist
+│   │   │   └── SquashboxFS.entitlements
+│   │   ├── Generated/
+│   │   │   ├── SquashboxCore.swift         # UniFFI-generated Swift bindings
+│   │   │   └── SquashboxCoreFFI.h          # UniFFI-generated C header
+│   │   └── SquashboxFS.xcodeproj
 │   │
-│   ├── windows-projfs/          # Local fork (git subtree)
-│   └── fskit-rs/                # Local fork (git subtree)
+│   └── windows-projfs/          # Local fork (git subtree)
 │
 ├── docs/
 └── Cargo.toml                   # Workspace root
 ```
+
+**Key change from previous architecture:** `fskit-rs` is removed entirely. The macOS
+driver is a native Swift FSKit app extension that links the Rust `squashbox-core` crate
+as a static library via UniFFI. No TCP, no Protobuf, no bridge process.
 
 ---
 
@@ -58,15 +67,16 @@ pub const ROOT_INODE: InodeId = 1;
 
 /// File type classification.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum EntryType {
     File,
     Directory,
     Symlink,
-    // BlockDevice, CharDevice, Fifo, Socket — if needed later
 }
 
 /// Metadata for a single filesystem entry.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct EntryAttributes {
     pub inode: InodeId,
     pub entry_type: EntryType,
@@ -74,14 +84,15 @@ pub struct EntryAttributes {
     pub mode: u32,          // POSIX mode bits (e.g., 0o755)
     pub uid: u32,
     pub gid: u32,
-    pub mtime: SystemTime,
-    pub atime: SystemTime,
-    pub ctime: SystemTime,
+    pub mtime_secs: i64,    // Unix timestamp (UniFFI-friendly, no SystemTime)
+    pub atime_secs: i64,
+    pub ctime_secs: i64,
     pub nlink: u32,
 }
 
 /// A single directory entry (name + attributes).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DirEntry {
     pub name: String,
     pub attributes: EntryAttributes,
@@ -89,13 +100,23 @@ pub struct DirEntry {
 
 /// Extended attribute.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct Xattr {
     pub name: String,
     pub value: Vec<u8>,
 }
 
+/// A paginated batch of directory entries.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct DirEntryBatch {
+    pub entries: Vec<DirEntry>,
+    pub next_cookie: u64,   // 0 = no more entries
+}
+
 /// Volume-level statistics.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct VolumeStats {
     pub total_bytes: u64,
     pub used_bytes: u64,
@@ -106,6 +127,7 @@ pub struct VolumeStats {
 
 /// Core error type.
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum CoreError {
     #[error("entry not found: {0}")]
     NotFound(String),
@@ -114,17 +136,28 @@ pub enum CoreError {
     NotADirectory(InodeId),
 
     #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
+    IoError(String),
 
     #[error("squashfs error: {0}")]
     SquashFs(String),
 
     #[error("operation not supported")]
     NotSupported,
+
+    #[error("read-only filesystem")]
+    ReadOnly,
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
 ```
+
+> **Note on timestamps:** `SystemTime` is replaced with `i64` Unix timestamps.
+> UniFFI cannot marshal `SystemTime` across FFI; Unix seconds are universally understood
+> by both Rust and Swift (`Date(timeIntervalSince1970:)`).
+
+> **Note on `Io` variant:** The `Io(#[from] std::io::Error)` variant is replaced with
+> `IoError(String)` because `std::io::Error` is not FFI-safe. Conversion happens at
+> the boundary.
 
 ---
 
@@ -135,13 +168,13 @@ It is intentionally synchronous — the async boundary lives in the driver layer
 
 ```rust
 use crate::types::*;
-use std::io::Read;
 use std::path::Path;
 
 /// Platform-agnostic virtual filesystem provider.
 ///
 /// Implementors provide read-only access to a filesystem image.
-/// Both the ProjFS and FSKit drivers call these methods.
+/// The ProjFS driver calls these methods directly.
+/// The macOS driver calls these methods via UniFFI-exported wrapper functions.
 pub trait VirtualFsProvider: Send + Sync {
     // ── Path-based lookups (used primarily by ProjFS) ──
 
@@ -154,21 +187,21 @@ pub trait VirtualFsProvider: Send + Sync {
     /// Get attributes for a given inode.
     fn get_attributes(&self, inode: InodeId) -> CoreResult<EntryAttributes>;
 
-    /// List all entries in a directory.
-    /// Returns entries sorted by name.
-    fn list_directory(&self, inode: InodeId) -> CoreResult<Vec<DirEntry>>;
+    /// List directory entries with pagination.
+    /// `cookie` is 0 for the first batch, then `next_cookie` from previous batch.
+    fn list_directory(&self, inode: InodeId, cookie: u64) -> CoreResult<DirEntryBatch>;
 
     /// Look up a single entry by name within a directory.
     fn lookup(&self, parent_inode: InodeId, name: &str) -> CoreResult<Option<DirEntry>>;
 
     /// Read file content at a byte range.
-    /// Returns a Read impl positioned at `offset`, returning up to `length` bytes.
+    /// Returns the data as a byte vector.
     fn read_file(
         &self,
         inode: InodeId,
         offset: u64,
         length: u64,
-    ) -> CoreResult<Box<dyn Read + Send + '_>>;
+    ) -> CoreResult<Vec<u8>>;
 
     /// Read the target of a symbolic link.
     fn read_symlink(&self, inode: InodeId) -> CoreResult<String>;
@@ -181,12 +214,24 @@ pub trait VirtualFsProvider: Send + Sync {
     /// Get the value of a specific xattr.
     fn get_xattr(&self, inode: InodeId, name: &str) -> CoreResult<Vec<u8>>;
 
+    // ── Access control ──
+
+    /// Check if access is allowed for the given mode bits.
+    /// `mask` is a POSIX access mask (R_OK, W_OK, X_OK).
+    fn check_access(&self, inode: InodeId, mask: u32) -> CoreResult<bool>;
+
     // ── Volume info ──
 
     /// Get filesystem-level statistics.
     fn volume_stats(&self) -> CoreResult<VolumeStats>;
 }
 ```
+
+> **Change from previous version:** `read_file()` returns `Vec<u8>` instead of
+> `Box<dyn Read>`. This is necessary because UniFFI cannot marshal Rust trait objects
+> across FFI. The `Vec<u8>` is the natural FFI-safe return type — Swift receives it
+> as `Data`. For ProjFS, the Windows driver wraps the `Vec<u8>` in a `Cursor<Vec<u8>>`
+> to satisfy the `Read` trait if needed.
 
 ---
 
@@ -195,14 +240,12 @@ pub trait VirtualFsProvider: Send + Sync {
 ```rust
 use crate::provider::VirtualFsProvider;
 use crate::types::*;
-use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
 
 /// A SquashFS-backed implementation of VirtualFsProvider.
 ///
-/// Thread-safe via interior Arc: multiple ProjFS callback threads
-/// can call into this concurrently.
+/// Thread-safe: multiple ProjFS callback threads or FSKit dispatch
+/// queues can call into this concurrently.
 pub struct SquashFsProvider {
     // backhand::FilesystemReader is the main handle.
     // It is Send + Sync, so multiple threads can read concurrently.
@@ -247,10 +290,11 @@ impl VirtualFsProvider for SquashFsProvider {
         todo!()
     }
 
-    fn list_directory(&self, inode: InodeId) -> CoreResult<Vec<DirEntry>> {
+    fn list_directory(&self, inode: InodeId, cookie: u64) -> CoreResult<DirEntryBatch> {
         // Verify inode is a directory
         // Collect all children from InodeIndex where parent == inode
-        // Sort by name
+        // Sort by name, paginate starting at cookie offset
+        // Return DirEntryBatch { entries, next_cookie }
         todo!()
     }
 
@@ -264,10 +308,10 @@ impl VirtualFsProvider for SquashFsProvider {
         inode: InodeId,
         offset: u64,
         length: u64,
-    ) -> CoreResult<Box<dyn Read + Send + '_>> {
+    ) -> CoreResult<Vec<u8>> {
         // 1. Get the backhand SquashfsFileReader for this inode
         // 2. Seek to offset (may need to decompress blocks up to that point)
-        // 3. Return a Read adapter limited to `length` bytes
+        // 3. Read `length` bytes into Vec<u8>
         todo!()
     }
 
@@ -286,11 +330,228 @@ impl VirtualFsProvider for SquashFsProvider {
         todo!()
     }
 
+    fn check_access(&self, inode: InodeId, mask: u32) -> CoreResult<bool> {
+        // Read mode bits, compare against mask
+        // For read-only FS, always deny W_OK
+        todo!()
+    }
+
     fn volume_stats(&self) -> CoreResult<VolumeStats> {
         // Read superblock for total size, inode count, block size
         todo!()
     }
 }
+```
+
+---
+
+### `ffi.rs` — UniFFI-Exported Functions (macOS boundary)
+
+This module exposes the `VirtualFsProvider` interface as flat, FFI-safe functions
+that UniFFI can generate Swift bindings for. The `SquashboxHandle` is an opaque
+object that Swift holds a reference to.
+
+```rust
+use crate::provider::VirtualFsProvider;
+use crate::squashfs::SquashFsProvider;
+use crate::types::*;
+use std::sync::Arc;
+
+/// Opaque handle to an opened SquashFS image.
+/// Swift holds an `Arc` to this via UniFFI's object support.
+#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
+pub struct SquashboxHandle {
+    provider: Arc<SquashFsProvider>,
+}
+
+#[cfg_attr(feature = "uniffi", uniffi::export)]
+impl SquashboxHandle {
+    /// Open a SquashFS image and return a handle.
+    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
+    pub fn open(image_path: String) -> Result<Arc<Self>, CoreError> {
+        let provider = SquashFsProvider::open(std::path::Path::new(&image_path))?;
+        Ok(Arc::new(Self {
+            provider: Arc::new(provider),
+        }))
+    }
+
+    /// Get attributes for an inode.
+    pub fn get_attributes(&self, inode_id: u64) -> Result<EntryAttributes, CoreError> {
+        self.provider.get_attributes(inode_id)
+    }
+
+    /// Look up an entry by name within a parent directory.
+    pub fn lookup(&self, parent_inode: u64, name: String) -> Result<Option<DirEntry>, CoreError> {
+        self.provider.lookup(parent_inode, &name)
+    }
+
+    /// List directory entries with pagination.
+    pub fn list_directory(&self, inode_id: u64, cookie: u64) -> Result<DirEntryBatch, CoreError> {
+        self.provider.list_directory(inode_id, cookie)
+    }
+
+    /// Read file content at a byte range.
+    pub fn read_file(&self, inode_id: u64, offset: u64, length: u64) -> Result<Vec<u8>, CoreError> {
+        self.provider.read_file(inode_id, offset, length)
+    }
+
+    /// Read symlink target.
+    pub fn read_symlink(&self, inode_id: u64) -> Result<String, CoreError> {
+        self.provider.read_symlink(inode_id)
+    }
+
+    /// List xattr names.
+    pub fn list_xattrs(&self, inode_id: u64) -> Result<Vec<String>, CoreError> {
+        self.provider.list_xattrs(inode_id)
+    }
+
+    /// Get a specific xattr value.
+    pub fn get_xattr(&self, inode_id: u64, name: String) -> Result<Vec<u8>, CoreError> {
+        self.provider.get_xattr(inode_id, &name)
+    }
+
+    /// Check access permissions.
+    pub fn check_access(&self, inode_id: u64, mask: u32) -> Result<bool, CoreError> {
+        self.provider.check_access(inode_id, mask)
+    }
+
+    /// Get volume statistics.
+    pub fn volume_stats(&self) -> Result<VolumeStats, CoreError> {
+        self.provider.volume_stats()
+    }
+
+    /// Close the handle (explicit cleanup before Drop).
+    pub fn close(&self) {
+        // Explicit cleanup if needed; Arc handles the rest
+    }
+}
+```
+
+This generates Swift code that looks like:
+
+```swift
+// Generated by UniFFI — SquashboxCore.swift (DO NOT EDIT)
+
+public class SquashboxHandle {
+    public convenience init(imagePath: String) throws { ... }
+    public func getAttributes(inodeId: UInt64) throws -> EntryAttributes { ... }
+    public func lookup(parentInode: UInt64, name: String) throws -> DirEntry? { ... }
+    public func listDirectory(inodeId: UInt64, cookie: UInt64) throws -> DirEntryBatch { ... }
+    public func readFile(inodeId: UInt64, offset: UInt64, length: UInt64) throws -> Data { ... }
+    public func readSymlink(inodeId: UInt64) throws -> String { ... }
+    public func listXattrs(inodeId: UInt64) throws -> [String] { ... }
+    public func getXattr(inodeId: UInt64, name: String) throws -> Data { ... }
+    public func checkAccess(inodeId: UInt64, mask: UInt32) throws -> Bool { ... }
+    public func volumeStats() throws -> VolumeStats { ... }
+    public func close() { ... }
+}
+
+public struct EntryAttributes {
+    public var inode: UInt64
+    public var entryType: EntryType
+    public var size: UInt64
+    public var mode: UInt32
+    public var uid: UInt32
+    public var gid: UInt32
+    public var mtimeSecs: Int64
+    public var atimeSecs: Int64
+    public var ctimeSecs: Int64
+    public var nlink: UInt32
+}
+
+public enum EntryType { case file, directory, symlink }
+public enum CoreError: Error { case notFound(String), notADirectory(UInt64), ... }
+```
+
+---
+
+### `squashbox_core.udl` — UniFFI Interface Definition (alternative to proc-macros)
+
+```webidl
+// If using UDL instead of proc-macro attributes:
+
+namespace squashbox_core {};
+
+[Error]
+enum CoreError {
+    "NotFound",
+    "NotADirectory",
+    "IoError",
+    "SquashFs",
+    "NotSupported",
+    "ReadOnly",
+};
+
+enum EntryType {
+    "File",
+    "Directory",
+    "Symlink",
+};
+
+dictionary EntryAttributes {
+    u64 inode;
+    EntryType entry_type;
+    u64 size;
+    u32 mode;
+    u32 uid;
+    u32 gid;
+    i64 mtime_secs;
+    i64 atime_secs;
+    i64 ctime_secs;
+    u32 nlink;
+};
+
+dictionary DirEntry {
+    string name;
+    EntryAttributes attributes;
+};
+
+dictionary DirEntryBatch {
+    sequence<DirEntry> entries;
+    u64 next_cookie;
+};
+
+dictionary VolumeStats {
+    u64 total_bytes;
+    u64 used_bytes;
+    u64 total_inodes;
+    u64 used_inodes;
+    u32 block_size;
+};
+
+interface SquashboxHandle {
+    [Throws=CoreError]
+    constructor(string image_path);
+
+    [Throws=CoreError]
+    EntryAttributes get_attributes(u64 inode_id);
+
+    [Throws=CoreError]
+    DirEntry? lookup(u64 parent_inode, string name);
+
+    [Throws=CoreError]
+    DirEntryBatch list_directory(u64 inode_id, u64 cookie);
+
+    [Throws=CoreError]
+    bytes read_file(u64 inode_id, u64 offset, u64 length);
+
+    [Throws=CoreError]
+    string read_symlink(u64 inode_id);
+
+    [Throws=CoreError]
+    sequence<string> list_xattrs(u64 inode_id);
+
+    [Throws=CoreError]
+    bytes get_xattr(u64 inode_id, string name);
+
+    [Throws=CoreError]
+    boolean check_access(u64 inode_id, u32 mask);
+
+    [Throws=CoreError]
+    VolumeStats volume_stats();
+
+    void close();
+};
 ```
 
 ---
@@ -302,7 +563,7 @@ impl VirtualFsProvider for SquashFsProvider {
 ```rust
 use squashbox_core::provider::VirtualFsProvider;
 use squashbox_core::types::*;
-use std::io::Read;
+use std::io::{Cursor, Read};
 use std::ops::ControlFlow;
 use std::path::Path;
 use std::sync::Arc;
@@ -338,14 +599,22 @@ impl ProjectedFileSystemSource for SquashboxProjFsSource {
             _ => return vec![], // Empty = directory not found
         };
 
-        // 2. List directory contents from core
-        let entries = match self.provider.list_directory(inode) {
-            Ok(entries) => entries,
-            Err(_) => return vec![],
-        };
+        // 2. List ALL directory contents (ProjFS expects full list)
+        let mut all_entries = Vec::new();
+        let mut cookie = 0u64;
+        loop {
+            match self.provider.list_directory(inode, cookie) {
+                Ok(batch) => {
+                    all_entries.extend(batch.entries);
+                    if batch.next_cookie == 0 { break; }
+                    cookie = batch.next_cookie;
+                }
+                Err(_) => return vec![],
+            }
+        }
 
         // 3. Map core DirEntry → windows_projfs DirectoryEntry
-        entries
+        all_entries
             .into_iter()
             .map(|e| match e.attributes.entry_type {
                 EntryType::Directory => DirectoryEntry::Directory(DirectoryInfo {
@@ -374,15 +643,19 @@ impl ProjectedFileSystemSource for SquashboxProjFsSource {
         let inode = self
             .provider
             .resolve_path(path)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e))?
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e.to_string()))?
             .ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "file not found")
             })?;
 
-        // 2. Delegate to core read_file
-        self.provider
+        // 2. Read data from core (returns Vec<u8>)
+        let data = self
+            .provider
             .read_file(inode, byte_offset as u64, length as u64)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+
+        // 3. Wrap in Cursor to satisfy Box<dyn Read>
+        Ok(Box::new(Cursor::new(data)))
     }
 
     /// Called by ProjFS for stat-like operations (get placeholder info).
@@ -467,428 +740,363 @@ fn main() -> anyhow::Result<()> {
 
 ## Layer 2b: macOS Driver (`squashbox-macos`)
 
-### `fskit_fs.rs` — Bridging VirtualFsProvider → fskit-rs
+### Architecture Overview
 
-```rust
-use async_trait::async_trait;
-use squashbox_core::provider::VirtualFsProvider;
-use squashbox_core::types::*;
-use std::ffi::OsStr;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+The macOS driver is a Swift FSKit app extension (`.appex`) that links the Rust
+`squashbox-core` static library directly into its process space via UniFFI.
 
-use fskit_rs::{
-    AccessMask, CaseFormat, DirectoryEntries, Error as FskitError, Filesystem,
-    Item, ItemAttributes, ItemType, MountOptions, OpenMode, PathConfOperations,
-    PreallocateFlag, ResourceIdentifier, SetXattrPolicy, StatFsResult,
-    SupportedCapabilities, SyncFlags, TaskOptions, VolumeBehavior, VolumeIdentifier,
-    Xattrs,
-};
-
-/// Adapts a VirtualFsProvider into an fskit-rs Filesystem.
-///
-/// Unlike the ProjFS driver, FSKit uses inode IDs directly —
-/// no path resolution needed at this layer.
-pub struct SquashboxFskitFs {
-    provider: Arc<dyn VirtualFsProvider>,
-    image_name: String,
-}
-
-impl SquashboxFskitFs {
-    pub fn new(provider: Arc<dyn VirtualFsProvider>, image_name: String) -> Self {
-        Self { provider, image_name }
-    }
-
-    /// Helper: convert CoreError to fskit-rs Error.
-    fn map_err(e: CoreError) -> FskitError {
-        match e {
-            CoreError::NotFound(_) => FskitError::Posix(libc::ENOENT),
-            CoreError::NotADirectory(_) => FskitError::Posix(libc::ENOTDIR),
-            CoreError::Io(_) => FskitError::Posix(libc::EIO),
-            CoreError::NotSupported => FskitError::Posix(libc::ENOSYS),
-            CoreError::SquashFs(_) => FskitError::Posix(libc::EIO),
-        }
-    }
-
-    /// Helper: convert core EntryAttributes to fskit-rs ItemAttributes.
-    fn to_item_attributes(attrs: &EntryAttributes) -> ItemAttributes {
-        ItemAttributes {
-            // Map fields: size, mode, uid, gid, timestamps, nlink, etc.
-            ..Default::default()
-        }
-    }
-
-    /// Helper: convert core DirEntry to fskit-rs Item.
-    fn to_item(entry: &DirEntry) -> Item {
-        Item {
-            // Map: id = entry.attributes.inode, name, attributes
-            ..Default::default()
-        }
-    }
-}
-
-#[async_trait]
-impl Filesystem for SquashboxFskitFs {
-    // ── Volume Setup ──
-
-    async fn get_resource_identifier(&mut self) -> fskit_rs::Result<ResourceIdentifier> {
-        Ok(ResourceIdentifier {
-            // Unique ID for this SquashFS image (could use image hash)
-            ..Default::default()
-        })
-    }
-
-    async fn get_volume_identifier(&mut self) -> fskit_rs::Result<VolumeIdentifier> {
-        Ok(VolumeIdentifier {
-            // Volume name derived from image filename
-            ..Default::default()
-        })
-    }
-
-    async fn get_volume_behavior(&mut self) -> fskit_rs::Result<VolumeBehavior> {
-        Ok(VolumeBehavior {
-            // CRITICAL: Mark as read-only
-            // read_only: true,
-            ..Default::default()
-        })
-    }
-
-    async fn get_path_conf_operations(&mut self) -> fskit_rs::Result<PathConfOperations> {
-        Ok(PathConfOperations::default())
-    }
-
-    async fn get_volume_capabilities(&mut self) -> fskit_rs::Result<SupportedCapabilities> {
-        Ok(SupportedCapabilities {
-            // Report: supports read, stat, readdir, readlink, xattr
-            // Does not support: write, create, delete, rename
-            ..Default::default()
-        })
-    }
-
-    async fn get_volume_statistics(&mut self) -> fskit_rs::Result<StatFsResult> {
-        let stats = self.provider.volume_stats().map_err(Self::map_err)?;
-        Ok(StatFsResult {
-            // Map VolumeStats → StatFsResult
-            ..Default::default()
-        })
-    }
-
-    // ── Lifecycle ──
-
-    async fn activate(&mut self, _options: TaskOptions) -> fskit_rs::Result<Item> {
-        // Return the root directory item
-        let root_attrs = self.provider.get_attributes(ROOT_INODE).map_err(Self::map_err)?;
-        Ok(Self::to_item(&DirEntry {
-            name: String::new(),
-            attributes: root_attrs,
-        }))
-    }
-
-    async fn mount(&mut self, _options: TaskOptions) -> fskit_rs::Result<()> {
-        // Volume is ready for I/O
-        Ok(())
-    }
-
-    async fn unmount(&mut self) -> fskit_rs::Result<()> {
-        // Clean shutdown
-        Ok(())
-    }
-
-    async fn deactivate(&mut self) -> fskit_rs::Result<()> {
-        // Release resources
-        Ok(())
-    }
-
-    async fn synchronize(&mut self, _flags: SyncFlags) -> fskit_rs::Result<()> {
-        // Read-only FS — nothing to flush
-        Ok(())
-    }
-
-    // ── Read Operations (the core of our FS) ──
-
-    async fn lookup_item(
-        &mut self,
-        name: &OsStr,
-        directory_id: u64,
-    ) -> fskit_rs::Result<Item> {
-        // Flow: name + parent_inode → core.lookup() → Item
-        let name_str = name.to_string_lossy();
-        let entry = self
-            .provider
-            .lookup(directory_id, &name_str)
-            .map_err(Self::map_err)?
-            .ok_or(FskitError::Posix(libc::ENOENT))?;
-
-        Ok(Self::to_item(&entry))
-    }
-
-    async fn get_attributes(&mut self, item_id: u64) -> fskit_rs::Result<ItemAttributes> {
-        // Flow: inode → core.get_attributes() → ItemAttributes
-        let attrs = self.provider.get_attributes(item_id).map_err(Self::map_err)?;
-        Ok(Self::to_item_attributes(&attrs))
-    }
-
-    async fn enumerate_directory(
-        &mut self,
-        directory_id: u64,
-        cookie: u64,
-        _verifier: u64,
-    ) -> fskit_rs::Result<DirectoryEntries> {
-        // Flow: dir_inode + cookie → core.list_directory() → paginate → DirectoryEntries
-        let all_entries = self.provider.list_directory(directory_id).map_err(Self::map_err)?;
-
-        // Paginate using cookie as an offset index
-        let page_size = 64; // entries per batch
-        let start = cookie as usize;
-        let end = (start + page_size).min(all_entries.len());
-        let page = &all_entries[start..end];
-
-        let items: Vec<Item> = page.iter().map(Self::to_item).collect();
-        let next_cookie = if end < all_entries.len() { end as u64 } else { 0 };
-
-        Ok(DirectoryEntries {
-            // entries: items,
-            // cookie: next_cookie,
-            // verifier: 0,
-            ..Default::default()
-        })
-    }
-
-    async fn open_item(
-        &mut self,
-        item_id: u64,
-        modes: Vec<OpenMode>,
-    ) -> fskit_rs::Result<()> {
-        // For read-only FS: allow OpenMode::Read, reject OpenMode::Write
-        // No state to track — SquashFS doesn't have open handles
-        Ok(())
-    }
-
-    async fn close_item(
-        &mut self,
-        _item_id: u64,
-        _modes: Vec<OpenMode>,
-    ) -> fskit_rs::Result<()> {
-        // No-op for stateless reads
-        Ok(())
-    }
-
-    async fn read(
-        &mut self,
-        item_id: u64,
-        offset: i64,
-        length: i64,
-    ) -> fskit_rs::Result<Vec<u8>> {
-        // Flow: inode + offset + length → core.read_file() → Read → Vec<u8>
-        let mut reader = self
-            .provider
-            .read_file(item_id, offset as u64, length as u64)
-            .map_err(Self::map_err)?;
-
-        let mut buf = Vec::with_capacity(length as usize);
-        reader
-            .read_to_end(&mut buf)
-            .map_err(|e| FskitError::Posix(libc::EIO))?;
-
-        Ok(buf)
-    }
-
-    async fn read_symbolic_link(&mut self, item_id: u64) -> fskit_rs::Result<Vec<u8>> {
-        // Flow: inode → core.read_symlink() → String → Vec<u8>
-        let target = self.provider.read_symlink(item_id).map_err(Self::map_err)?;
-        Ok(target.into_bytes())
-    }
-
-    // ── Extended Attributes ──
-
-    async fn get_supported_xattr_names(
-        &mut self,
-        item_id: u64,
-    ) -> fskit_rs::Result<Xattrs> {
-        let names = self.provider.list_xattrs(item_id).map_err(Self::map_err)?;
-        Ok(Xattrs {
-            // Map names into Xattrs struct
-            ..Default::default()
-        })
-    }
-
-    async fn get_xattr(
-        &mut self,
-        name: &OsStr,
-        item_id: u64,
-    ) -> fskit_rs::Result<Vec<u8>> {
-        let name_str = name.to_string_lossy();
-        self.provider
-            .get_xattr(item_id, &name_str)
-            .map_err(Self::map_err)
-    }
-
-    async fn get_xattrs(&mut self, item_id: u64) -> fskit_rs::Result<Xattrs> {
-        // Same as get_supported_xattr_names but with values
-        let names = self.provider.list_xattrs(item_id).map_err(Self::map_err)?;
-        Ok(Xattrs {
-            ..Default::default()
-        })
-    }
-
-    async fn set_xattr(
-        &mut self,
-        _name: &OsStr,
-        _value: Option<Vec<u8>>,
-        _item_id: u64,
-        _policy: SetXattrPolicy,
-    ) -> fskit_rs::Result<()> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn check_access(
-        &mut self,
-        item_id: u64,
-        _access: Vec<AccessMask>,
-    ) -> fskit_rs::Result<bool> {
-        // Always allow read access for now
-        // Could check mode bits from core.get_attributes() against access masks
-        Ok(true)
-    }
-
-    // ── Write Operations (all denied — read-only FS) ──
-
-    async fn set_attributes(
-        &mut self,
-        _item_id: u64,
-        _attributes: ItemAttributes,
-    ) -> fskit_rs::Result<ItemAttributes> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn create_item(
-        &mut self,
-        _name: &OsStr,
-        _r#type: ItemType,
-        _directory_id: u64,
-        _attributes: ItemAttributes,
-    ) -> fskit_rs::Result<Item> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn create_symbolic_link(
-        &mut self,
-        _name: &OsStr,
-        _directory_id: u64,
-        _new_attributes: ItemAttributes,
-        _contents: Vec<u8>,
-    ) -> fskit_rs::Result<Item> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn create_link(
-        &mut self,
-        _item_id: u64,
-        _name: &OsStr,
-        _directory_id: u64,
-    ) -> fskit_rs::Result<Vec<u8>> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn remove_item(
-        &mut self,
-        _item_id: u64,
-        _name: &OsStr,
-        _directory_id: u64,
-    ) -> fskit_rs::Result<()> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn rename_item(
-        &mut self,
-        _item_id: u64,
-        _source_directory_id: u64,
-        _source_name: &OsStr,
-        _destination_name: &OsStr,
-        _destination_directory_id: u64,
-        _over_item_id: Option<u64>,
-    ) -> fskit_rs::Result<Vec<u8>> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn write(
-        &mut self,
-        _contents: Vec<u8>,
-        _item_id: u64,
-        _offset: i64,
-    ) -> fskit_rs::Result<i64> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn set_volume_name(&mut self, _name: Vec<u8>) -> fskit_rs::Result<Vec<u8>> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn preallocate_space(
-        &mut self,
-        _item_id: u64,
-        _offset: i64,
-        _length: i64,
-        _flags: Vec<PreallocateFlag>,
-    ) -> fskit_rs::Result<i64> {
-        Err(FskitError::Posix(libc::EROFS))
-    }
-
-    async fn reclaim_item(&mut self, _item_id: u64) -> fskit_rs::Result<()> {
-        // Called when the kernel is done with an inode reference.
-        // No action needed — we don't track open refs.
-        Ok(())
-    }
-
-    async fn deactivate_item(&mut self, _item_id: u64) -> fskit_rs::Result<()> {
-        Ok(())
-    }
-}
+```
+┌───────────────────────────────────────────────────────┐
+│ SquashboxFS.appex  (FSKit App Extension)              │
+│                                                       │
+│  ┌──────────────────────┐    ┌──────────────────────┐ │
+│  │ SquashboxFS.swift     │    │ libsquashbox_core.a   │ │
+│  │                       │    │ (Rust static library) │ │
+│  │ FSUnaryFileSystem     │    │                       │ │
+│  │ subclass (~200 lines) │───►│ SquashboxHandle       │ │
+│  │                       │ FFI│ (UniFFI object)       │ │
+│  │ Maps FSKit callbacks  │◄───│                       │ │
+│  │ to Rust core calls    │    │ VirtualFsProvider     │ │
+│  └──────────────────────┘    │ SquashFsProvider      │ │
+│                               │ backhand              │ │
+│                               └──────────────────────┘ │
+└───────────────────────────────────────────────────────┘
+         ▲                              │
+         │ XPC (managed by FSKit)       │ Direct file I/O
+         ▼                              ▼
+    macOS kernel                   .sqsh image file
+    (VFS layer)
 ```
 
-### `main.rs` — macOS Entry Point
+**Data flow for a read():**
+```
+Application → kernel VFS → FSKit XPC → Swift appex
+    → FFI call into Rust static library (in-process, ~0.1μs)
+    → backhand decompresses SquashFS block
+    → returns Vec<u8> across FFI (zero-copy pointer handoff)
+    → Swift writes to FSKit buffer → XPC → kernel → application
+```
 
-```rust
-use squashbox_core::squashfs::SquashFsProvider;
-use std::path::PathBuf;
-use std::sync::Arc;
+**What this eliminates vs. fskit-rs:**
+- ❌ No TCP socket (was: 2 TCP hops per call)
+- ❌ No Protobuf serialization (was: 2 ser/deser per call)
+- ❌ No separate bridge process (was: FSKitBridge Swift project)
+- ❌ No tokio runtime (was: async TCP server)
+- ✅ Single process, single binary, direct function calls
 
-mod fskit_fs;
-use fskit_fs::SquashboxFskitFs;
+---
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    env_logger::init();
+### `SquashboxFS.swift` — FSKit App Extension
 
-    // 1. Parse CLI arguments
-    let image_path = PathBuf::from(std::env::args().nth(1).expect("usage: squashbox <image> <mount>"));
-    let mount_point = PathBuf::from(std::env::args().nth(2).expect("usage: squashbox <image> <mount>"));
-    let image_name = image_path
-        .file_stem()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
+```swift
+import FSKit
 
-    // 2. Open SquashFS image
-    let provider = Arc::new(SquashFsProvider::open(&image_path)?);
+/// FSKit filesystem extension for SquashFS.
+///
+/// This is the entire macOS driver — a thin Swift shell that conforms to
+/// FSUnaryFileSystem and delegates every operation to the Rust core via UniFFI.
+class SquashboxFileSystem: FSUnaryFileSystem {
 
-    // 3. Create FSKit filesystem adapter
-    let fs = SquashboxFskitFs::new(provider, image_name);
+    /// Handle to the Rust core (opened SquashFS image)
+    private var handle: SquashboxHandle?
 
-    // 4. Configure mount options
-    let opts = fskit_rs::MountOptions {
-        // mount_point: mount_point.to_string_lossy().to_string(),
-        // port: find_available_port(),
-        ..Default::default()
-    };
+    // MARK: - Lifecycle
 
-    // 5. Mount and serve (blocks until unmount signal)
-    //    Internally: opens TCP socket, waits for FSKitBridge connection,
-    //    then serves protobuf RPCs until unmount()
-    fskit_rs::mount(fs, opts).await?;
+    override func loadResource(
+        resource: FSResource,
+        options: FSTaskOptions,
+        replyHandler: @escaping (FSItem?, Error?) -> Void
+    ) {
+        do {
+            // Open the SquashFS image — this is a direct FFI call into Rust.
+            // Rust parses the superblock, builds the inode index, returns a handle.
+            let imagePath = resource.url.path
+            self.handle = try SquashboxHandle(imagePath: imagePath)
 
-    println!("Unmounted.");
-    Ok(())
+            // Return the root directory item
+            let rootAttrs = try handle!.getAttributes(inodeId: 1) // ROOT_INODE
+            let rootItem = FSItem()
+            rootItem.itemIdentifier = FSItemIdentifier(rawValue: 1)
+            mapAttributes(from: rootAttrs, to: rootItem)
+            replyHandler(rootItem, nil)
+        } catch {
+            replyHandler(nil, error.toNSError())
+        }
+    }
+
+    override func didFinishLoading() {
+        // Volume is now ready for I/O
+    }
+
+    override func unmount(replyHandler: @escaping (Error?) -> Void) {
+        handle?.close()
+        handle = nil
+        replyHandler(nil)
+    }
+
+    // MARK: - Volume Info
+
+    override var volumeName: String {
+        return "SquashFS Volume"
+    }
+
+    override func volumeStatistics() throws -> FSStatFS {
+        guard let handle = handle else { throw POSIXError(.EIO) }
+        let stats = try handle.volumeStats()
+        var result = FSStatFS()
+        result.totalBlocks = stats.totalBytes / UInt64(stats.blockSize)
+        result.freeBlocks = (stats.totalBytes - stats.usedBytes) / UInt64(stats.blockSize)
+        result.blockSize = UInt32(stats.blockSize)
+        result.totalFiles = stats.totalInodes
+        result.freeFiles = stats.totalInodes - stats.usedInodes
+        return result
+    }
+
+    // MARK: - Read Operations (the core of our FS)
+
+    override func lookUp(
+        name: String,
+        inDirectory directory: FSItemIdentifier,
+        replyHandler: @escaping (FSItem?, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+            guard let entry = try handle.lookup(
+                parentInode: directory.rawValue,
+                name: name
+            ) else {
+                throw POSIXError(.ENOENT)
+            }
+
+            let item = FSItem()
+            item.itemIdentifier = FSItemIdentifier(rawValue: entry.attributes.inode)
+            item.name = entry.name
+            mapAttributes(from: entry.attributes, to: item)
+            replyHandler(item, nil)
+        } catch {
+            replyHandler(nil, error.toNSError())
+        }
+    }
+
+    override func getAttributes(
+        of item: FSItemIdentifier,
+        replyHandler: @escaping (FSItemAttributes?, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+            let attrs = try handle.getAttributes(inodeId: item.rawValue)
+            let fsAttrs = FSItemAttributes()
+            mapAttributes(from: attrs, to: fsAttrs)
+            replyHandler(fsAttrs, nil)
+        } catch {
+            replyHandler(nil, error.toNSError())
+        }
+    }
+
+    override func enumerateDirectory(
+        identifier: FSItemIdentifier,
+        startingAt cookie: UInt64,
+        verifier: UInt64,
+        provideItem: @escaping (FSDirectoryEntry) -> Bool,
+        replyHandler: @escaping (UInt64, UInt64, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+            let batch = try handle.listDirectory(
+                inodeId: identifier.rawValue,
+                cookie: cookie
+            )
+
+            for entry in batch.entries {
+                let dirEntry = FSDirectoryEntry()
+                dirEntry.name = entry.name
+                dirEntry.itemIdentifier = FSItemIdentifier(rawValue: entry.attributes.inode)
+                dirEntry.itemType = mapEntryType(entry.attributes.entryType)
+
+                if !provideItem(dirEntry) {
+                    break  // Consumer is full
+                }
+            }
+
+            replyHandler(batch.nextCookie, 0, nil)
+        } catch {
+            replyHandler(0, 0, error.toNSError())
+        }
+    }
+
+    override func read(
+        from item: FSItemIdentifier,
+        offset: Int64,
+        length: Int64,
+        into buffer: FSMutableFileDataBuffer,
+        replyHandler: @escaping (Int64, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+
+            // Direct FFI call — no serialization, no IPC.
+            // Rust decompresses SquashFS blocks and returns bytes.
+            let data = try handle.readFile(
+                inodeId: item.rawValue,
+                offset: UInt64(offset),
+                length: UInt64(length)
+            )
+
+            // Copy into FSKit's provided buffer
+            data.withUnsafeBytes { ptr in
+                buffer.write(ptr, at: 0)
+            }
+
+            replyHandler(Int64(data.count), nil)
+        } catch {
+            replyHandler(0, error.toNSError())
+        }
+    }
+
+    override func readSymbolicLink(
+        of item: FSItemIdentifier,
+        replyHandler: @escaping (String?, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+            let target = try handle.readSymlink(inodeId: item.rawValue)
+            replyHandler(target, nil)
+        } catch {
+            replyHandler(nil, error.toNSError())
+        }
+    }
+
+    // MARK: - Extended Attributes
+
+    override func xattrNames(
+        of item: FSItemIdentifier,
+        replyHandler: @escaping ([String]?, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+            let names = try handle.listXattrs(inodeId: item.rawValue)
+            replyHandler(names, nil)
+        } catch {
+            replyHandler(nil, error.toNSError())
+        }
+    }
+
+    override func getXattr(
+        named name: String,
+        of item: FSItemIdentifier,
+        replyHandler: @escaping (Data?, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+            let value = try handle.getXattr(inodeId: item.rawValue, name: name)
+            replyHandler(value, nil)
+        } catch {
+            replyHandler(nil, error.toNSError())
+        }
+    }
+
+    // MARK: - Access Control
+
+    override func checkAccess(
+        to item: FSItemIdentifier,
+        operations: FSAccessMask,
+        replyHandler: @escaping (Bool, Error?) -> Void
+    ) {
+        do {
+            guard let handle = handle else { throw POSIXError(.EIO) }
+            let allowed = try handle.checkAccess(
+                inodeId: item.rawValue,
+                mask: operations.rawValue
+            )
+            replyHandler(allowed, nil)
+        } catch {
+            replyHandler(false, error.toNSError())
+        }
+    }
+
+    // MARK: - Write Operations (all denied — read-only FS)
+    //
+    // These methods do NOT call into Rust at all.
+    // They return EROFS immediately in Swift.
+
+    override func createItem(
+        named name: String, type: FSItemType,
+        inDirectory directory: FSItemIdentifier,
+        attributes: FSItemAttributes,
+        replyHandler: @escaping (FSItem?, Error?) -> Void
+    ) {
+        replyHandler(nil, POSIXError(.EROFS))
+    }
+
+    override func write(
+        contents: Data, to item: FSItemIdentifier,
+        at offset: Int64,
+        replyHandler: @escaping (Int64, Error?) -> Void
+    ) {
+        replyHandler(0, POSIXError(.EROFS))
+    }
+
+    override func removeItem(
+        named name: String,
+        inDirectory directory: FSItemIdentifier,
+        replyHandler: @escaping (Error?) -> Void
+    ) {
+        replyHandler(POSIXError(.EROFS))
+    }
+
+    override func rename(
+        item: FSItemIdentifier, inDirectory: FSItemIdentifier,
+        named: String, to: FSItemIdentifier,
+        newName: String,
+        replyHandler: @escaping (Error?) -> Void
+    ) {
+        replyHandler(POSIXError(.EROFS))
+    }
+
+    override func setXattr(
+        named name: String, of item: FSItemIdentifier,
+        value: Data?, policy: FSXattrPolicy,
+        replyHandler: @escaping (Error?) -> Void
+    ) {
+        replyHandler(POSIXError(.EROFS))
+    }
+
+    override func setAttributes(
+        _ attributes: FSItemAttributes,
+        of item: FSItemIdentifier,
+        replyHandler: @escaping (FSItemAttributes?, Error?) -> Void
+    ) {
+        replyHandler(nil, POSIXError(.EROFS))
+    }
+
+    // MARK: - Helpers
+
+    private func mapAttributes(from attrs: EntryAttributes, to item: FSItem) {
+        item.size = attrs.size
+        item.mode = mode_t(attrs.mode)
+        item.uid = attrs.uid
+        item.gid = attrs.gid
+        item.linkCount = UInt32(attrs.nlink)
+        item.modificationDate = Date(timeIntervalSince1970: TimeInterval(attrs.mtimeSecs))
+        item.accessDate = Date(timeIntervalSince1970: TimeInterval(attrs.atimeSecs))
+        item.changeDate = Date(timeIntervalSince1970: TimeInterval(attrs.ctimeSecs))
+    }
+
+    private func mapAttributes(from attrs: EntryAttributes, to fsAttrs: FSItemAttributes) {
+        fsAttrs.size = attrs.size
+        fsAttrs.mode = mode_t(attrs.mode)
+        fsAttrs.uid = attrs.uid
+        fsAttrs.gid = attrs.gid
+        fsAttrs.linkCount = UInt32(attrs.nlink)
+    }
+
+    private func mapEntryType(_ type: EntryType) -> FSItemType {
+        switch type {
+        case .file:      return .regular
+        case .directory: return .directory
+        case .symlink:   return .symbolicLink
+        }
+    }
 }
 ```
 
@@ -915,8 +1123,8 @@ Explorer                    ProjFS (kernel)          windows-projfs        Squas
    │                            │── GetFileData ────────►│                        │                       │
    │                            │                        │── stream_file_content ─►│                       │
    │                            │                        │                        │── read_file() ───────►│
-   │                            │                        │                        │◄── Box<dyn Read> ─────│
-   │                            │                        │◄── Box<dyn Read> ──────│                       │
+   │                            │                        │                        │◄── Vec<u8> ────────── │
+   │                            │                        │◄── Cursor<Vec<u8>> ────│                       │
    │                            │◄─ hydrated data ───────│                        │                       │
    │◄── file contents ─────────│                        │                        │                       │
 ```
@@ -924,31 +1132,30 @@ Explorer                    ProjFS (kernel)          windows-projfs        Squas
 ### macOS: User opens a file
 
 ```
-Application          VFS (kernel)        FSKit         FSKitBridge(Swift)     TCP/Protobuf       fskit-rs          SquashboxFskitFs      SquashFsProvider
-   │                     │                 │                 │                     │                 │                    │                     │
-   │── open("/foo") ────►│                 │                 │                     │                 │                    │                     │
-   │                     │── lookup ──────►│                 │                     │                 │                    │                     │
-   │                     │                 │── XPC ─────────►│                     │                 │                    │                     │
-   │                     │                 │                 │── protobuf msg ────►│                 │                    │                     │
-   │                     │                 │                 │                     │── dispatch ────►│                    │                     │
-   │                     │                 │                 │                     │                 │── lookup_item() ──►│                     │
-   │                     │                 │                 │                     │                 │                    │── lookup() ─────────►│
-   │                     │                 │                 │                     │                 │                    │◄── DirEntry ─────────│
-   │                     │                 │                 │                     │                 │◄── Item ───────────│                     │
-   │                     │                 │                 │                     │◄── protobuf ────│                    │                     │
-   │                     │                 │                 │◄── XPC response ────│                 │                    │                     │
-   │                     │                 │◄────────────────│                     │                 │                    │                     │
-   │                     │◄── vnode ───────│                 │                     │                 │                    │                     │
-   │◄── fd ──────────────│                 │                 │                     │                 │                    │                     │
-   │                     │                 │                 │                     │                 │                    │                     │
-   │── read(fd, buf) ───►│                 │                 │                     │                 │                    │                     │
-   │                     │── read ────────►│── XPC ─────────►│── protobuf ────────►│── dispatch ────►│── read() ─────────►│                     │
-   │                     │                 │                 │                     │                 │                    │── read_file() ──────►│
-   │                     │                 │                 │                     │                 │                    │◄── Vec<u8> ──────────│
-   │                     │                 │                 │                     │                 │◄── Vec<u8> ────────│                     │
-   │                     │                 │                 │                     │◄── protobuf ────│                    │                     │
-   │◄── data ────────────│◄────────────────│◄────────────────│◄────────────────────│                 │                    │                     │
+Application         VFS (kernel)       FSKit           SquashboxFS.swift       SquashboxHandle (Rust)
+   │                     │                │                  │                        │
+   │── open("/foo") ────►│                │                  │                        │
+   │                     │── lookup ─────►│                  │                        │
+   │                     │                │── XPC ──────────►│                        │
+   │                     │                │                  │── handle.lookup() ────►│ (FFI call, ~0.1μs)
+   │                     │                │                  │◄── DirEntry ───────────│
+   │                     │                │                  │── map to FSItem ───────│
+   │                     │                │◄── FSItem ───────│                        │
+   │                     │◄── vnode ──────│                  │                        │
+   │◄── fd ──────────────│                │                  │                        │
+   │                     │                │                  │                        │
+   │── read(fd, buf) ───►│                │                  │                        │
+   │                     │── read ───────►│── XPC ──────────►│                        │
+   │                     │                │                  │── handle.readFile() ──►│ (FFI call, ~0.1μs)
+   │                     │                │                  │◄── Vec<u8> / Data ─────│
+   │                     │                │                  │── write to buffer ─────│
+   │                     │                │◄── data ─────────│                        │
+   │◄── data ────────────│◄───────────────│                  │                        │
 ```
+
+> **Compare with previous fskit-rs diagram:** Gone are the `FSKitBridge`, `TCP/Protobuf`,
+> and `fskit-rs` columns. The data path is now 5 hops instead of 10. The critical
+> `handle.readFile()` call is a direct C-ABI function call within the same process.
 
 ---
 
@@ -956,11 +1163,32 @@ Application          VFS (kernel)        FSKit         FSKitBridge(Swift)     TC
 
 ### Why `VirtualFsProvider` is synchronous
 
-Both OS driver layers handle the async boundary themselves:
+Both OS driver layers handle the concurrency boundary themselves:
 - **ProjFS**: Callbacks arrive on OS-managed threads. `windows-projfs` requires `Sync` on the source. Our provider is `Send + Sync` via `Arc`.
-- **FSKit**: The `fskit-rs` `Filesystem` trait is `async_trait`. The async adapter wraps synchronous core calls using `tokio::task::spawn_blocking` if needed.
+- **FSKit**: The Swift `FSUnaryFileSystem` callbacks arrive on FSKit-managed dispatch queues. The UniFFI call into Rust is a blocking C-ABI call. Since `SquashFsProvider` is `Send + Sync`, multiple concurrent FSKit callbacks are safe.
 
 Keeping the core synchronous avoids forcing async onto the SquashFS reader, which does file I/O that doesn't benefit from async (it's CPU-bound decompression + sequential disk reads).
+
+### Why UniFFI instead of fskit-rs
+
+The previous architecture used `fskit-rs`, which communicates with a Swift FSKitBridge
+over localhost TCP using Protobuf serialization. This added:
+- **~40-100μs per call** of IPC overhead (TCP + Protobuf ser/deser)
+- A separate bridge process to manage
+- A tokio async runtime for the TCP server
+- Full Protobuf serialization of file data (pure waste for `read()` calls)
+
+UniFFI eliminates all of this. The Rust core compiles as a static library that links
+directly into the Swift app extension. FFI calls are **in-process C-ABI calls** with
+**~0.1μs overhead** — 100-1000× faster than the TCP path. For a filesystem driver
+where every `read()` must cross the boundary, this difference is critical.
+
+### Why `read_file()` returns `Vec<u8>` instead of `Box<dyn Read>`
+
+UniFFI cannot marshal Rust trait objects across FFI boundaries. `Vec<u8>` is the natural
+FFI-safe type — UniFFI maps it to Swift `Data`, which is what FSKit expects anyway.
+On the Windows side, `Vec<u8>` is wrapped in `Cursor<Vec<u8>>` to produce the
+`Box<dyn Read>` that `windows-projfs` expects — a trivial adapter.
 
 ### Why path-based AND inode-based APIs exist on VirtualFsProvider
 
@@ -973,9 +1201,29 @@ Rather than forcing one model, we expose both and let each driver use what's nat
 
 SquashFS is inherently read-only. Rather than panicking or silently ignoring writes, we return the correct POSIX error (`EROFS` = read-only filesystem) on macOS and deny ProjFS notifications on Windows. This gives applications correct error handling.
 
+On macOS, write operations don't even cross the FFI boundary — they return `EROFS`
+immediately in Swift, avoiding any unnecessary Rust calls.
+
 ### Why the core builds an InodeIndex at mount time
 
 SquashFS stores directory data inline with inodes. Scanning the tree once at mount time and building a HashMap gives us O(1) lookups for any inode, which is critical because:
 - ProjFS `list_directory` is called on every Explorer navigation
-- FSKit `lookup_item` is called for every path component resolution
+- FSKit `lookUp` is called for every path component resolution
 - Building the index is a one-time cost (~100ms for a 10GB image with 100K files)
+
+### Build pipeline for macOS
+
+```
+1. cargo build --target aarch64-apple-darwin --release
+   → produces libsquashbox_core.a
+
+2. cargo run --bin uniffi-bindgen generate src/squashbox_core.udl --language swift
+   → produces SquashboxCore.swift + SquashboxCoreFFI.h + module.modulemap
+
+3. Xcode project links libsquashbox_core.a into SquashboxFS.appex target
+   → Bridging header imports SquashboxCoreFFI.h
+   → Swift code imports SquashboxCore module
+
+4. xcodebuild builds the .appex bundle
+   → Contains: Swift code + Rust static library, single binary
+```
