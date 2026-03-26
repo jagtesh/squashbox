@@ -1,0 +1,26 @@
+[package]
+name = "squashbox-windows"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Windows ProjFS driver for Squashbox"
+
+[[bin]]
+name = "squashbox"
+path = "src/main.rs"
+
+[lib]
+name = "squashbox_windows"
+path = "src/lib.rs"
+
+[dependencies]
+squashbox-core = { path = "../squashbox-core" }
+windows-projfs = "0.1.7"
+anyhow = "1"
+ctrlc = "3"
+log = "0.4"
+env_logger = "0.11"
+
+[dev-dependencies]
+tempfile = "3"

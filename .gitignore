@@ -1,0 +1,21 @@
+# Rust build artifacts
+/target/
+**/target/
+
+# Cargo lock (optional for libraries, keep for binaries)
+# Cargo.lock is kept in version control for this workspace
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test fixtures (generated, can be recreated)
+crates/squashbox-core/tests/fixtures/*.sqsh

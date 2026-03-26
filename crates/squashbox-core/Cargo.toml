@@ -1,0 +1,28 @@
+[package]
+name = "squashbox-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Platform-agnostic SquashFS virtual filesystem provider"
+
+[lib]
+name = "squashbox_core"
+# staticlib needed for UniFFI linking into macOS Swift appex
+crate-type = ["lib", "staticlib"]
+
+[features]
+default = ["zstd", "xz", "gzip"]
+# Compression backends (enabled via backhand features)
+zstd = ["backhand/zstd"]
+xz = ["backhand/xz"]
+gzip = ["backhand/gzip"]
+lz4 = ["backhand/lz4"]
+lzo = ["backhand/lzo"]
+
+[dependencies]
+backhand = { version = "0.25", default-features = false }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
