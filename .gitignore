@@ -19,3 +19,9 @@ desktop.ini
 
 # Test fixtures (generated, can be recreated)
 crates/squashbox-core/tests/fixtures/*.sqsh
+*.squashfs
+
+# Temporary build output
+build_errors.txt
+test_output.txt
+stress_output.txt

@@ -7,7 +7,7 @@ license.workspace = true
 description = "Windows ProjFS driver for Squashbox"
 
 [[bin]]
-name = "squashbox"
+name = "sqb"
 path = "src/main.rs"
 
 [lib]
@@ -16,11 +16,12 @@ path = "src/lib.rs"
 
 [dependencies]
 squashbox-core = { path = "../squashbox-core" }
-windows-projfs = "0.1.7"
-anyhow = "1"
-ctrlc = "3"
-log = "0.4"
-env_logger = "0.11"
+windows-projfs = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+ctrlc = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = { workspace = true }

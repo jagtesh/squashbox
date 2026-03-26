@@ -150,13 +150,15 @@ impl SquashboxProjFsSource {
     fn map_attributes_to_entry(name: &str, attrs: &EntryAttributes) -> DirectoryEntry {
         match attrs.entry_type {
             EntryType::Directory => DirectoryEntry::Directory(DirectoryInfo {
-                name: name.into(),
+                directory_name: name.into(),
+                ..Default::default()
             }),
             // Files and symlinks are projected as files.
             // Symlinks are resolved transparently by the core.
             _ => DirectoryEntry::File(FileInfo {
-                name: name.into(),
-                size: attrs.size,
+                file_name: name.into(),
+                file_size: attrs.size,
+                ..Default::default()
             }),
         }
     }
@@ -340,6 +342,7 @@ mod tests {
     #[test]
     fn list_directory_root_returns_entries() {
         let source = make_source();
+        use windows_projfs::ProjectedFileSystemSource;
         let entries = source.list_directory(Path::new(""));
         assert_eq!(entries.len(), 3);
     }
@@ -347,6 +350,7 @@ mod tests {
     #[test]
     fn list_directory_maps_directories_correctly() {
         let source = make_source();
+        use windows_projfs::ProjectedFileSystemSource;
         let entries = source.list_directory(Path::new(""));
         let dirs: Vec<_> = entries
             .iter()
@@ -354,7 +358,7 @@ mod tests {
             .collect();
         assert_eq!(dirs.len(), 1); // "src" is the only directory
         match &dirs[0] {
-            DirectoryEntry::Directory(info) => assert_eq!(info.name, "src"),
+            DirectoryEntry::Directory(info) => assert_eq!(info.directory_name, "src"),
             _ => panic!("expected directory"),
         }
     }
@@ -362,6 +366,7 @@ mod tests {
     #[test]
     fn list_directory_maps_files_correctly() {
         let source = make_source();
+        use windows_projfs::ProjectedFileSystemSource;
         let entries = source.list_directory(Path::new(""));
         let files: Vec<_> = entries
             .iter()
@@ -374,11 +379,12 @@ mod tests {
     #[test]
     fn list_directory_symlink_projected_as_file() {
         let source = make_source();
+        use windows_projfs::ProjectedFileSystemSource;
         let entries = source.list_directory(Path::new(""));
         let link_entry = entries
             .iter()
             .find(|e| match e {
-                DirectoryEntry::File(f) => f.name == "link",
+                DirectoryEntry::File(f) => f.file_name == "link",
                 _ => false,
             });
         assert!(link_entry.is_some(), "symlink should be projected as file");
@@ -387,12 +393,13 @@ mod tests {
     #[test]
     fn list_directory_subdir() {
         let source = make_source();
+        use windows_projfs::ProjectedFileSystemSource;
         let entries = source.list_directory(Path::new("src"));
         assert_eq!(entries.len(), 1);
         match &entries[0] {
             DirectoryEntry::File(f) => {
-                assert_eq!(f.name, "main.rs");
-                assert_eq!(f.size, 256);
+                assert_eq!(f.file_name, "main.rs");
+                assert_eq!(f.file_size, 256);
             }
             _ => panic!("expected file entry"),
         }
@@ -401,6 +408,7 @@ mod tests {
     #[test]
     fn list_directory_nonexistent_returns_empty() {
         let source = make_source();
+        use windows_projfs::ProjectedFileSystemSource;
         let entries = source.list_directory(Path::new("nonexistent"));
         assert!(entries.is_empty());
     }
@@ -409,6 +417,7 @@ mod tests {
 
     #[test]
     fn stream_file_content_reads_data() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let mut reader = source
             .stream_file_content(Path::new("readme.md"), 0, 1000)
@@ -421,6 +430,7 @@ mod tests {
 
     #[test]
     fn stream_file_content_with_offset() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let mut reader = source
             .stream_file_content(Path::new("readme.md"), 2, 6)
@@ -432,14 +442,17 @@ mod tests {
 
     #[test]
     fn stream_file_content_nonexistent_returns_error() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let result = source.stream_file_content(Path::new("nope"), 0, 100);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::NotFound);
+        let err = result.err().unwrap();
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
     }
 
     #[test]
     fn stream_file_content_on_directory_returns_error() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let result = source.stream_file_content(Path::new("src"), 0, 100);
         // Should error because "src" is a directory
@@ -450,13 +463,14 @@ mod tests {
 
     #[test]
     fn get_directory_entry_existing_file() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let entry = source.get_directory_entry(Path::new("readme.md"));
         assert!(entry.is_some());
         match entry.unwrap() {
             DirectoryEntry::File(f) => {
-                assert_eq!(f.name, "readme.md");
-                assert_eq!(f.size, 42);
+                assert_eq!(f.file_name, "readme.md");
+                assert_eq!(f.file_size, 42);
             }
             _ => panic!("expected file"),
         }
@@ -464,17 +478,19 @@ mod tests {
 
     #[test]
     fn get_directory_entry_existing_dir() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let entry = source.get_directory_entry(Path::new("src"));
         assert!(entry.is_some());
         match entry.unwrap() {
-            DirectoryEntry::Directory(d) => assert_eq!(d.name, "src"),
+            DirectoryEntry::Directory(d) => assert_eq!(d.directory_name, "src"),
             _ => panic!("expected directory"),
         }
     }
 
     #[test]
     fn get_directory_entry_nonexistent() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let entry = source.get_directory_entry(Path::new("nope.txt"));
         assert!(entry.is_none());
@@ -482,13 +498,14 @@ mod tests {
 
     #[test]
     fn get_directory_entry_nested() {
+        use windows_projfs::ProjectedFileSystemSource;
         let source = make_source();
         let entry = source.get_directory_entry(Path::new("src/main.rs"));
         assert!(entry.is_some());
         match entry.unwrap() {
             DirectoryEntry::File(f) => {
-                assert_eq!(f.name, "main.rs");
-                assert_eq!(f.size, 256);
+                assert_eq!(f.file_name, "main.rs");
+                assert_eq!(f.file_size, 256);
             }
             _ => panic!("expected file"),
         }
@@ -498,28 +515,28 @@ mod tests {
 
     #[test]
     fn handle_notification_always_denies() {
+        use windows_projfs::{FileRenameInfo, Notification, ProjectedFile, ProjectedFileSystemSource};
         let source = make_source();
 
         // FileCreated
-        let result = source.handle_notification(&Notification::FileCreated {
+        let result = source.handle_notification(&Notification::FileCreated(ProjectedFile {
             path: Path::new("test.txt").into(),
-        });
+            ..Default::default()
+        }));
         assert!(matches!(result, ControlFlow::Break(())));
 
-        // FileDeleted
-        let result = source.handle_notification(&Notification::FileDeleted {
+        // PreFileDelete
+        let result = source.handle_notification(&Notification::PreFileDelete(ProjectedFile {
             path: Path::new("test.txt").into(),
-        });
+            ..Default::default()
+        }));
         assert!(matches!(result, ControlFlow::Break(())));
 
         // FileRenamed
-        let result = source.handle_notification(&Notification::FileRenamed {
-            path: Path::new("test.txt").into(),
-            destination_path: Path::new("test2.txt").into(),
-            info: windows_projfs::FileRenameInfo {
-                original_file_name: "test.txt".into(),
-            },
-        });
+        let result = source.handle_notification(&Notification::FileRenamed(FileRenameInfo {
+            source: Some(Path::new("test.txt").into()),
+            destination: Some(Path::new("test2.txt").into()),
+        }));
         assert!(matches!(result, ControlFlow::Break(())));
     }
 
