@@ -63,7 +63,7 @@ User/App reads file → NTFS → ProjFS minifilter → Callback to Provider → 
 
 - **Native C API** — `projectedfslib.h` in the Windows SDK
 - **Managed (.NET) API** — [`Microsoft.Windows.ProjFS`](https://www.nuget.org/packages/Microsoft.Windows.ProjFS) NuGet package; pure C# P/Invoke wrapper, no C++ toolchain needed
-- **Feature activation required** — ProjFS must be enabled via `Enable-WindowsOptionalFeature -Online -FeatureName Client-ProjFS`
+- **Feature activation required** — ProjFS is **still an optional Windows feature** on both Windows 10 and Windows 11 (as of 2026). It is not enabled by default. Must be enabled via `Enable-WindowsOptionalFeature -Online -FeatureName Client-ProjFS` or the "Turn Windows features on or off" GUI (requires admin).
 
 ### Feasibility for Squashbox: ✅ High
 
@@ -75,8 +75,7 @@ User/App reads file → NTFS → ProjFS minifilter → Callback to Provider → 
 - .NET managed API makes development accessible with C#
 
 **Concerns:**
-- Requires Windows 10 1809+ (should be fine for target audience)
-- ProjFS feature must be enabled once (admin privilege required for setup)
+- **ProjFS is not enabled by default** — even on Windows 11 in 2026, it remains an optional feature. Squashbox will need an installer or first-run wizard that enables it (requires admin). This is the single biggest UX friction point on Windows.
 - NTFS-only for symlink support (minor — SquashFS symlinks could be projected)
 - Hydrated files persist locally; may need a scrubbing/cleanup strategy
 - Not designed for slow backing stores (but squashfs images are local files, so this is fine)
@@ -87,7 +86,7 @@ User/App reads file → NTFS → ProjFS minifilter → Callback to Provider → 
 
 ### Overview
 
-FSKit is Apple's new framework (macOS Sequoia 15.4+, 2024–2025) for implementing filesystems in **user space** as app extensions. It's Apple's strategic replacement for kernel extensions (kexts) and is positioned as the successor to the macFUSE approach.
+FSKit is Apple's framework for implementing filesystems in **user space** as app extensions. First introduced in macOS 15.4 (Sequoia, 2025), it is now a **stable, shipping component** in macOS 26 (Tahoe). Apple has been migrating its own filesystems to FSKit since macOS 13 (Ventura) — MSDOS and exFAT were fully moved by macOS 14 (Sonoma). FSKit is Apple's strategic replacement for kernel extensions (kexts) and the successor to the macFUSE/kext approach.
 
 ### How it works
 
@@ -119,23 +118,25 @@ For Squashbox, `FSUnaryFileSystem` is the right fit — one `.sqsh` image → on
 | `FSVolume.Operations` | Basic volume operations (read) |
 | `FSVolume.ReadWriteOperations` | Write operations (**optional — omit for read-only**) |
 
-### Feasibility for Squashbox: ✅ Moderate-High
+### Feasibility for Squashbox: ✅ High
 
 **Strengths:**
-- Official Apple-sanctioned approach (replaces kexts)
+- Official Apple-sanctioned approach — Apple uses it for its own FS implementations
+- Stable and shipping since macOS 15.4; now in its second major release cycle (macOS 26 Tahoe)
 - User-space execution = better stability and security
 - App Store distributable
 - Read-only is trivially achieved by not conforming to write protocols
-- Swift-native development
-- macFUSE 5.0.0 already uses FSKit as a backend (validates the approach)
+- Swift-native development with excellent C interop for bridging to a shared core
+- macFUSE 5.0.0 uses FSKit as a backend (validates the approach for third parties)
+- No optional feature toggle needed — FSKit is built into macOS
 
 **Concerns:**
-- **Very new** — macOS 15.4+ only (Sequoia, released 2025)
-- **Limited documentation** — few real-world examples beyond Apple's passthrough sample and community samples (KhaosT/FSKitSample)
-- **API still evolving** — `FSFileSystem` flow is not yet fully supported
-- **Swift-only** — the extension must be written in Swift (though C/C++ can be bridged)
+- `FSFileSystem` (multi-resource) flow is not yet fully supported — but `FSUnaryFileSystem` is all we need
+- **Swift-only** for the extension itself (though C/C++/Rust can be bridged for the core logic)
 - **App extension model** — distribution requires a host app + extension bundle
-- POSIX semantics and feature completeness are still being expanded in FSKit
+- I/O performance of FSKit volumes has been reported as slightly behind kext-backed volumes (as of late 2025); may have improved in macOS 26
+- Mounts are currently restricted to `/Volumes` (standard macOS behavior)
+- Documentation has improved but is still thinner than ProjFS; Apple's passthrough sample + KhaosT/FSKitSample are the main references
 
 ---
 
@@ -316,10 +317,10 @@ This is a pragmatic hybrid:
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
-| FSKit API changes / instability | High | Medium | Start with ProjFS (stable), treat macOS as fast-follow |
+| ProjFS not enabled by default on Windows | Medium | High | Installer/first-run wizard enables it with admin prompt; clear error messaging if missing |
+| FSKit I/O performance gap vs kexts | Low | Medium | Read-only SquashFS is not I/O intensive; benchmark and cache aggressively |
 | libsquashfs Windows/MSVC build issues | Medium | Medium | Use `backhand` (pure Rust) instead; or pre-build via MinGW |
-| ProjFS feature not enabled on user machines | Medium | Low | Installer/setup wizard enables it; clear error messaging |
-| macOS version requirement (15.4+) | Medium | Low | Document requirement clearly; no workaround exists |
+| macOS version requirement (15.4+) | Low | Low | macOS 26 is current; targeting 15.4+ covers 2+ years of releases |
 | Abstraction layer over-engineering | Medium | Medium | Start with SquashFS only; add abstraction incrementally once both platforms work |
 | Performance (decompression latency on read) | Low | Low | Both APIs support on-demand read; cache aggressively; `backhand` has parallel decompression |
 
@@ -333,7 +334,7 @@ This is a pragmatic hybrid:
 
 3. **Connect the two** — Wire the SquashFS reader as the backing store for the ProjFS provider. This gives us a working Windows prototype.
 
-4. **Evaluate FSKit** — Build a minimal FSKit app extension that projects a hardcoded tree. Given its newness, this validates that FSKit is actually usable for our needs.
+4. **Prototype FSKit extension** — Build a minimal FSKit app extension that projects a hardcoded tree. FSKit is stable, so this is more about learning the API patterns than validating feasibility.
 
 5. **Design the abstraction** — With both platform prototypes in hand, extract the common interface. The real shape of the abstraction will become clear from implementation experience.
 
