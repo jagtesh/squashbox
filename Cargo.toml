@@ -29,4 +29,9 @@ env_logger = "0.11"
 tempfile = "3"
 
 [patch.crates-io]
-backhand = { path = "crates/backhand/backhand" }
+# We maintain a fork of backhand that fixes Windows path validation:
+# DirEntry::name() now uses raw-byte checks instead of Path::file_name(),
+# and maps Windows-illegal characters (backslash, colon, etc.) to Unicode
+# Private Use Area codepoints so Linux filenames are losslessly round-trippable.
+# See: https://github.com/jagtesh/backhand
+backhand = { git = "https://github.com/jagtesh/backhand", rev = "5957ae567543ba04d9545a0b35e579e5f8ea8396" }
