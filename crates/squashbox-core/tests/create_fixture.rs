@@ -4,7 +4,7 @@
 //! Run with: cargo test --test create_fixture -- --ignored
 //!
 //! The fixture contains:
-//! - hello.txt (text file)
+//! - hello.txt (text file: "Hello, World!\n")
 //! - data.bin (binary file)
 //! - empty.txt (empty file)
 //! - subdir/ (directory)
@@ -33,6 +33,7 @@ fn create_test_fixture() {
     let output_path = fixtures.join("test.sqsh");
 
     let mut writer = FilesystemWriter::default();
+    writer.set_current_time();
 
     let header = NodeHeader {
         permissions: 0o644,
@@ -48,10 +49,10 @@ fn create_test_fixture() {
         mtime: 1700000000,
     };
 
-    // Add files
+    // Add files to root
     writer
         .push_file(
-            Cursor::new(b"Hello, World!\n"),
+            Cursor::new(b"Hello, World!\n".to_vec()),
             "hello.txt",
             header,
         )
@@ -66,15 +67,15 @@ fn create_test_fixture() {
         .unwrap();
 
     writer
-        .push_file(Cursor::new(b""), "empty.txt", header)
+        .push_file(Cursor::new(Vec::<u8>::new()), "empty.txt", header)
         .unwrap();
 
-    // Add directory with nested files
+    // Add directory structure
     writer.push_dir("subdir", dir_header).unwrap();
 
     writer
         .push_file(
-            Cursor::new(b"Nested file content\n"),
+            Cursor::new(b"Nested file content\n".to_vec()),
             "subdir/nested.txt",
             header,
         )
@@ -84,13 +85,13 @@ fn create_test_fixture() {
 
     writer
         .push_file(
-            Cursor::new(b"Level 2 deep\n"),
+            Cursor::new(b"Level 2 deep\n".to_vec()),
             "subdir/deep/level2.txt",
             header,
         )
         .unwrap();
 
-    // Add symlink
+    // Add symlink: link.txt → hello.txt
     writer
         .push_symlink("hello.txt", "link.txt", header)
         .unwrap();

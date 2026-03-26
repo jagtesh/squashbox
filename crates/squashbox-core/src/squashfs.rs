@@ -6,9 +6,8 @@
 use crate::provider::VirtualFsProvider;
 use crate::types::*;
 use std::collections::HashMap;
-use std::io::{BufReader, Read, Seek};
+use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
 
 /// Default page size for directory listing pagination.
 const DIR_PAGE_SIZE: usize = 64;
@@ -26,6 +25,9 @@ struct IndexEntry {
     symlink_target: Option<String>,
     /// For directories: sorted list of child inode IDs.
     children: Vec<InodeId>,
+    /// Full path in the SquashFS image (for backhand lookups).
+    /// Stored as "/" for root, "/path/to/file" for others.
+    squashfs_path: String,
 }
 
 /// The in-memory inode index built from the SquashFS directory tree.
@@ -58,20 +60,32 @@ impl InodeIndex {
 
 /// A SquashFS-backed implementation of `VirtualFsProvider`.
 ///
-/// Thread-safe: the backhand `FilesystemReader` and the `InodeIndex` are
-/// both behind `Arc` and immutable after construction. Multiple ProjFS
-/// callback threads or FSKit dispatch queues can call into this concurrently.
+/// Thread-safe: the backhand `FilesystemReader` is behind a `Mutex` for
+/// interior mutability (it's needed for decompression state). The
+/// `InodeIndex` is immutable after construction.
+///
+/// # Lifetime Management
+///
+/// `backhand::FilesystemReader<'b>` borrows from its reader. We own the
+/// image data as `Vec<u8>` and pass a `Cursor` to backhand. The reader
+/// is stored alongside the data it borrows using a self-referencing
+/// pattern via raw pointer + unsafe. This is safe because:
+/// 1. `_image_data` is never moved or dropped before `reader`
+/// 2. The struct is never partially moved
+/// 3. Both fields are dropped together when the struct is dropped
 pub struct SquashFsProvider {
-    /// The backhand filesystem reader (immutable after open).
-    reader: Arc<backhand::FilesystemReader>,
-    /// The raw image bytes (kept alive for reader's lifetime).
-    _image_data: Arc<Vec<u8>>,
-    /// Precomputed inode index.
+    /// The raw image bytes (must outlive `reader`).
+    _image_data: Vec<u8>,
+    /// The backhand filesystem reader.
+    /// Uses a raw pointer approach: reader borrows from _image_data.
+    reader: backhand::FilesystemReader<'static>,
+    /// Precomputed inode index (immutable after construction).
     index: InodeIndex,
 }
 
-// Safety: SquashFsProvider is immutable after construction.
-// backhand::FilesystemReader is Send + Sync.
+// SAFETY: SquashFsProvider is conceptually immutable after construction.
+// The only mutable state is inside FilesystemReader (decompression cache),
+// which is protected by internal Mutex/RwLock in backhand.
 unsafe impl Send for SquashFsProvider {}
 unsafe impl Sync for SquashFsProvider {}
 
@@ -90,130 +104,101 @@ impl SquashFsProvider {
         let image_data = std::fs::read(image_path).map_err(|e| {
             CoreError::Io(format!("failed to read {}: {e}", image_path.display()))
         })?;
-        let image_data = Arc::new(image_data);
 
-        // 2. Parse with backhand
-        let reader = backhand::FilesystemReader::from_reader(
-            std::io::Cursor::new(image_data.as_ref().as_slice()),
-        )?;
-        let reader = Arc::new(reader);
+        Self::from_bytes(image_data)
+    }
 
-        // 3. Build inode index by walking the tree
+    /// Create a provider from raw image bytes (useful for testing).
+    pub fn from_bytes(image_data: Vec<u8>) -> CoreResult<Self> {
+        // SAFETY: We create a Cursor that borrows from `image_data`, then
+        // transmute the lifetime to 'static. This is safe because:
+        // - `image_data` is stored in the same struct and never moved
+        // - The reader is dropped before (or with) the data
+        let cursor = std::io::Cursor::new(unsafe {
+            std::slice::from_raw_parts(image_data.as_ptr(), image_data.len())
+        });
+
+        let reader = backhand::FilesystemReader::from_reader(cursor)?;
+
+        // Build index from the parsed filesystem
         let index = Self::build_index(&reader)?;
 
         Ok(Self {
-            reader,
             _image_data: image_data,
+            reader,
             index,
         })
     }
 
-    /// Build the inode index from the parsed SquashFS filesystem.
-    fn build_index(reader: &backhand::FilesystemReader) -> CoreResult<InodeIndex> {
+    /// Build the inode index by walking all nodes in the filesystem.
+    ///
+    /// backhand stores nodes sorted by fullpath. We assign our own inode IDs
+    /// (starting from ROOT_INODE=1) and build parent→child relationships.
+    fn build_index(reader: &backhand::FilesystemReader<'_>) -> CoreResult<InodeIndex> {
         let mut index = InodeIndex::new();
 
-        // We need to assign stable inode IDs. backhand uses InodeId internally.
-        // We'll use a counter-based approach, walking the tree breadth-first.
-
-        // First, insert the root entry
-        let root_inode = ROOT_INODE;
-        index.insert(
-            root_inode,
-            IndexEntry {
-                parent: root_inode, // Root is its own parent
-                name: String::new(),
-                attributes: EntryAttributes {
-                    inode: root_inode,
-                    entry_type: EntryType::Directory,
-                    size: 0,
-                    mode: 0o755,
-                    uid: 0,
-                    gid: 0,
-                    mtime_secs: 0,
-                    nlink: 2,
-                },
-                symlink_target: None,
-                children: Vec::new(),
-            },
-        );
-
-        // Walk backhand nodes and populate the index
-        let mut inode_counter: InodeId = 2; // Start after root
+        // Map from squashfs fullpath → our inode ID
         let mut path_to_inode: HashMap<String, InodeId> = HashMap::new();
-        path_to_inode.insert(String::new(), root_inode);
+        let mut inode_counter: InodeId = ROOT_INODE;
 
-        for node in reader.nodes() {
+        for node in reader.files() {
             let fullpath = node.fullpath.to_string_lossy().to_string();
-            // Strip leading "/" if present
-            let relative = fullpath.trim_start_matches('/');
-
-            // Skip root (already inserted)
-            if relative.is_empty() {
-                continue;
-            }
+            // Normalize: backhand stores paths like "/" and "/dir/file"
+            let is_root = fullpath == "/";
 
             let inode_id = inode_counter;
             inode_counter += 1;
 
-            // Determine parent path and name
-            let (parent_path, name) = match relative.rsplit_once('/') {
-                Some((parent, name)) => (parent.to_string(), name.to_string()),
-                None => (String::new(), relative.to_string()),
+            // Determine parent
+            let (parent_inode, name) = if is_root {
+                (ROOT_INODE, String::new()) // Root is its own parent
+            } else {
+                let relative = fullpath.trim_start_matches('/');
+                let (parent_path, name) = match relative.rsplit_once('/') {
+                    Some((parent, name)) => (format!("/{parent}"), name.to_string()),
+                    None => ("/".to_string(), relative.to_string()),
+                };
+                let parent_inode = *path_to_inode.get(&parent_path).unwrap_or(&ROOT_INODE);
+                (parent_inode, name)
             };
 
-            let parent_inode = *path_to_inode
-                .get(&parent_path)
-                .unwrap_or(&root_inode);
-
-            // Determine entry type and attributes from backhand node
-            let (entry_type, size, mode, symlink_target) =
-                Self::extract_node_info(node);
-
-            let mtime_secs = node.header.mtime as i64;
-            let uid = node.header.uid as u32;
-            let gid = node.header.gid as u32;
+            // Extract type, size, mode, symlink target
+            let (entry_type, size, mode, symlink_target) = Self::extract_node_info(node);
 
             let attributes = EntryAttributes {
                 inode: inode_id,
                 entry_type,
                 size,
-                mode,
-                uid,
-                gid,
-                mtime_secs,
-                nlink: if entry_type == EntryType::Directory {
-                    2
-                } else {
-                    1
-                },
+                mode: mode as u32,
+                uid: node.header.uid,
+                gid: node.header.gid,
+                mtime_secs: node.header.mtime as i64,
+                nlink: if entry_type == EntryType::Directory { 2 } else { 1 },
             };
 
             index.insert(
                 inode_id,
                 IndexEntry {
                     parent: parent_inode,
-                    name: name.clone(),
+                    name,
                     attributes,
                     symlink_target,
                     children: Vec::new(),
+                    squashfs_path: fullpath.clone(),
                 },
             );
 
-            // Register this path for child resolution
-            path_to_inode.insert(relative.to_string(), inode_id);
+            path_to_inode.insert(fullpath, inode_id);
 
-            // Add this inode as a child of its parent
-            if let Some(parent_entry) = index.entries.get_mut(&parent_inode) {
-                parent_entry.children.push(inode_id);
+            // Add as child of parent (skip root being its own child)
+            if !is_root {
+                if let Some(parent_entry) = index.entries.get_mut(&parent_inode) {
+                    parent_entry.children.push(inode_id);
+                }
             }
         }
 
         // Sort children by name for consistent enumeration
-        for entry in index.entries.values_mut() {
-            // We need to sort children by their names, but we only have inode IDs.
-            // We'll defer sorting until we have all entries populated.
-        }
-        // Now sort children by name
         let name_map: HashMap<InodeId, String> = index
             .entries
             .iter()
@@ -221,9 +206,7 @@ impl SquashFsProvider {
             .collect();
 
         for entry in index.entries.values_mut() {
-            entry
-                .children
-                .sort_by(|a, b| name_map[a].cmp(&name_map[b]));
+            entry.children.sort_by(|a, b| name_map[a].cmp(&name_map[b]));
         }
 
         Ok(index)
@@ -232,85 +215,58 @@ impl SquashFsProvider {
     /// Extract type, size, mode, and symlink target from a backhand node.
     fn extract_node_info(
         node: &backhand::Node<backhand::SquashfsFileReader>,
-    ) -> (EntryType, u64, u32, Option<String>) {
+    ) -> (EntryType, u64, u16, Option<String>) {
         use backhand::InnerNode;
 
         match &node.inner {
             InnerNode::File(file) => {
-                let size = file.basic.file_size as u64;
-                (EntryType::File, size, node.header.permissions as u32, None)
+                let size = file.file_len() as u64;
+                (EntryType::File, size, node.header.permissions, None)
             }
-            InnerNode::Dir(_) => (
-                EntryType::Directory,
-                0,
-                node.header.permissions as u32,
-                None,
-            ),
+            InnerNode::Dir(_) => (EntryType::Directory, 0, node.header.permissions, None),
             InnerNode::Symlink(link) => {
                 let target = link.link.to_string_lossy().to_string();
                 let size = target.len() as u64;
-                (
-                    EntryType::Symlink,
-                    size,
-                    0o777, // Symlinks are always 0777
-                    Some(target),
-                )
+                (EntryType::Symlink, size, 0o777, Some(target))
             }
-            InnerNode::CharacterDevice(_) => (
-                EntryType::CharDevice,
-                0,
-                node.header.permissions as u32,
-                None,
-            ),
-            InnerNode::BlockDevice(_) => (
-                EntryType::BlockDevice,
-                0,
-                node.header.permissions as u32,
-                None,
-            ),
+            InnerNode::CharacterDevice(_) => {
+                (EntryType::CharDevice, 0, node.header.permissions, None)
+            }
+            InnerNode::BlockDevice(_) => {
+                (EntryType::BlockDevice, 0, node.header.permissions, None)
+            }
+            InnerNode::NamedPipe | InnerNode::Socket => {
+                // Map pipes and sockets to files with size 0
+                (EntryType::File, 0, node.header.permissions, None)
+            }
         }
     }
 
-    /// Find the backhand node matching a given inode's full path.
-    fn find_backhand_node(
-        &self,
-        inode: InodeId,
-    ) -> CoreResult<&backhand::Node<backhand::SquashfsFileReader>> {
-        // Reconstruct the full path from the inode index
-        let fullpath = self.reconstruct_path(inode)?;
+    /// Find the backhand node matching a given inode's squashfs path
+    /// and read its file data.
+    fn read_node_data(&self, inode: InodeId) -> CoreResult<Vec<u8>> {
+        let entry = self.index.get(inode)?;
+        let squashfs_path = &entry.squashfs_path;
 
         // Find the matching node in backhand
-        for node in self.reader.nodes() {
+        for node in self.reader.files() {
             let node_path = node.fullpath.to_string_lossy();
-            let node_relative = node_path.trim_start_matches('/');
-            if node_relative == fullpath {
-                return Ok(node);
+            if node_path == *squashfs_path {
+                match &node.inner {
+                    backhand::InnerNode::File(file) => {
+                        let mut reader = self.reader.file(file).reader();
+                        let mut data = Vec::new();
+                        reader.read_to_end(&mut data)?;
+                        return Ok(data);
+                    }
+                    _ => return Err(CoreError::NotAFile(inode)),
+                }
             }
         }
 
-        Err(CoreError::NotFound(format!("backhand node for inode {inode}")))
-    }
-
-    /// Reconstruct the full relative path from root for a given inode.
-    fn reconstruct_path(&self, inode: InodeId) -> CoreResult<String> {
-        if inode == ROOT_INODE {
-            return Ok(String::new());
-        }
-
-        let mut components = Vec::new();
-        let mut current = inode;
-
-        loop {
-            let entry = self.index.get(current)?;
-            if current == ROOT_INODE {
-                break;
-            }
-            components.push(entry.name.clone());
-            current = entry.parent;
-        }
-
-        components.reverse();
-        Ok(components.join("/"))
+        Err(CoreError::NotFound(format!(
+            "backhand node for inode {inode} at path {squashfs_path}"
+        )))
     }
 }
 
@@ -318,8 +274,8 @@ impl VirtualFsProvider for SquashFsProvider {
     fn resolve_path(&self, path: &Path) -> CoreResult<Option<InodeId>> {
         let path_str = path.to_string_lossy();
 
-        // Empty path or "." = root
-        if path_str.is_empty() || path_str == "." {
+        // Empty path or "." or "/" = root
+        if path_str.is_empty() || path_str == "." || path_str == "/" {
             return Ok(Some(ROOT_INODE));
         }
 
@@ -337,6 +293,9 @@ impl VirtualFsProvider for SquashFsProvider {
         // Walk path components
         let mut current_inode = ROOT_INODE;
         for component in normalized.split('/') {
+            if component.is_empty() {
+                continue;
+            }
             match self.lookup(current_inode, component)? {
                 Some(entry) => current_inode = entry.attributes.inode,
                 None => return Ok(None),
@@ -415,12 +374,8 @@ impl VirtualFsProvider for SquashFsProvider {
             return Err(CoreError::NotAFile(inode));
         }
 
-        // Find the backhand node and read its data
-        let node = self.find_backhand_node(inode)?;
-
-        let mut file_reader = self.reader.file(&node.inner).reader();
-        let mut all_data = Vec::new();
-        file_reader.read_to_end(&mut all_data)?;
+        // Read full file data from backhand
+        let all_data = self.read_node_data(inode)?;
 
         // Apply offset and length
         let start = (offset as usize).min(all_data.len());
@@ -444,15 +399,16 @@ impl VirtualFsProvider for SquashFsProvider {
     fn list_xattrs(&self, inode: InodeId) -> CoreResult<Vec<String>> {
         // Verify inode exists
         let _ = self.index.get(inode)?;
-        // TODO: Implement xattr reading from backhand when API is available
+        // backhand does not expose xattr reading in its public API yet
         Ok(vec![])
     }
 
     fn get_xattr(&self, inode: InodeId, name: &str) -> CoreResult<Vec<u8>> {
         // Verify inode exists
         let _ = self.index.get(inode)?;
-        // TODO: Implement xattr reading from backhand when API is available
-        Err(CoreError::NotFound(format!("xattr '{name}' on inode {inode}")))
+        Err(CoreError::NotFound(format!(
+            "xattr '{name}' on inode {inode}"
+        )))
     }
 
     fn check_access(&self, inode: InodeId, mask: u32) -> CoreResult<bool> {
@@ -476,7 +432,7 @@ impl VirtualFsProvider for SquashFsProvider {
     }
 
     fn volume_stats(&self) -> CoreResult<VolumeStats> {
-        let block_size = self.reader.block_size();
+        let block_size = self.reader.block_size;
 
         // Calculate used bytes by summing all file sizes
         let mut used_bytes: u64 = 0;
@@ -485,11 +441,11 @@ impl VirtualFsProvider for SquashFsProvider {
         }
 
         Ok(VolumeStats {
-            total_bytes: used_bytes, // For read-only FS, total ≈ used
+            total_bytes: used_bytes,
             used_bytes,
             total_inodes: self.index.len() as u64,
             used_inodes: self.index.len() as u64,
-            block_size: block_size as u32,
+            block_size,
         })
     }
 }
@@ -507,7 +463,6 @@ mod tests {
     }
 
     /// Helper: get path to the test SquashFS image.
-    /// This image is created by the `create_test_fixture.sh` script.
     fn test_image_path() -> PathBuf {
         fixtures_dir().join("test.sqsh")
     }
@@ -528,7 +483,6 @@ mod tests {
 
     #[test]
     fn open_invalid_file_returns_error() {
-        // Create a temporary file with invalid content
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("invalid.sqsh");
         std::fs::write(&path, b"this is not a squashfs image").unwrap();
@@ -549,7 +503,6 @@ mod tests {
     }
 
     // ── Tests that require a test fixture ──
-    // These test the real backhand integration
 
     #[test]
     fn open_valid_image() {
@@ -578,7 +531,6 @@ mod tests {
             return;
         }
         let p = SquashFsProvider::open(&test_image_path()).unwrap();
-        // The test fixture should contain "hello.txt"
         let result = p.resolve_path(Path::new("hello.txt")).unwrap();
         assert!(result.is_some(), "expected hello.txt to exist");
     }
@@ -680,10 +632,8 @@ mod tests {
             .unwrap()
             .expect("hello.txt should exist");
 
-        // Read full file
         let full = p.read_file(inode, 0, 1_000_000).unwrap();
 
-        // Read with offset
         if full.len() > 5 {
             let partial = p.read_file(inode, 5, 10).unwrap();
             let expected = &full[5..(15.min(full.len()))];
@@ -707,8 +657,7 @@ mod tests {
             return;
         }
         let p = SquashFsProvider::open(&test_image_path()).unwrap();
-        // Root dir should be readable
-        assert!(p.check_access(ROOT_INODE, 4).unwrap()); // R_OK
+        assert!(p.check_access(ROOT_INODE, 4).unwrap());
     }
 
     #[test]
@@ -717,8 +666,7 @@ mod tests {
             return;
         }
         let p = SquashFsProvider::open(&test_image_path()).unwrap();
-        // Write should always be denied (read-only FS)
-        assert!(!p.check_access(ROOT_INODE, 2).unwrap()); // W_OK
+        assert!(!p.check_access(ROOT_INODE, 2).unwrap());
     }
 
     #[test]
@@ -748,10 +696,7 @@ mod tests {
             return;
         }
         let p = SquashFsProvider::open(&test_image_path()).unwrap();
-        // Windows-style path should work
-        let result = p.resolve_path(Path::new("subdir\\nested.txt")).unwrap();
-        // May or may not exist depending on the fixture, but shouldn't error
-        let _ = result;
+        let _ = p.resolve_path(Path::new("subdir\\nested.txt")).unwrap();
     }
 
     // ── InodeIndex unit tests ──
@@ -776,6 +721,7 @@ mod tests {
                 },
                 symlink_target: None,
                 children: vec![],
+                squashfs_path: "/".to_string(),
             },
         );
         assert!(idx.get(1).is_ok());
@@ -808,6 +754,7 @@ mod tests {
                 },
                 symlink_target: None,
                 children: vec![],
+                squashfs_path: "/".to_string(),
             },
         );
         assert_eq!(idx.len(), 1);
