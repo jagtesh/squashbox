@@ -7,13 +7,14 @@ use crate::provider::VirtualFsProvider;
 use crate::types::*;
 use std::collections::HashMap;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 /// Default page size for directory listing pagination.
 const DIR_PAGE_SIZE: usize = 64;
 
 /// An entry in the inode index, representing a single node in the FS tree.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct IndexEntry {
     /// Parent inode (ROOT_INODE for the root's own entry).
     parent: InodeId,
@@ -23,11 +24,18 @@ struct IndexEntry {
     attributes: EntryAttributes,
     /// For symlinks: the target path.
     symlink_target: Option<String>,
-    /// For directories: sorted list of child inode IDs.
+    /// For directories: ordered list of child inode IDs (sorted by name).
     children: Vec<InodeId>,
+    /// For directories: O(1) child lookup by name.
+    children_by_name: HashMap<String, InodeId>,
+    /// For directories: O(1) child lookup by lowercase generic name (for Windows/macOS collision prevention).
+    children_by_lowercase: HashMap<String, InodeId>,
+    /// Position of this node in backhand's files() iterator.
+    /// Used for O(1) access to the backhand node without a linear scan.
+    backhand_node_index: usize,
     /// Full path in the SquashFS image (for backhand lookups).
-    /// Stored as "/" for root, "/path/to/file" for others.
-    squashfs_path: String,
+    /// Stored as a PathBuf to enable cross-platform comparison.
+    squashfs_path: PathBuf,
 }
 
 /// The in-memory inode index built from the SquashFS directory tree.
@@ -89,6 +97,14 @@ pub struct SquashFsProvider {
 unsafe impl Send for SquashFsProvider {}
 unsafe impl Sync for SquashFsProvider {}
 
+impl std::fmt::Debug for SquashFsProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SquashFsProvider")
+            .field("inodes", &self.index.len())
+            .finish()
+    }
+}
+
 impl SquashFsProvider {
     /// Open a SquashFS image file and build the inode index.
     ///
@@ -137,30 +153,49 @@ impl SquashFsProvider {
     fn build_index(reader: &backhand::FilesystemReader<'_>) -> CoreResult<InodeIndex> {
         let mut index = InodeIndex::new();
 
-        // Map from squashfs fullpath → our inode ID
-        let mut path_to_inode: HashMap<String, InodeId> = HashMap::new();
+        // Map from backhand fullpath → our inode ID.
+        // We use PathBuf as the key so comparisons work cross-platform.
+        let mut path_to_inode: HashMap<PathBuf, InodeId> = HashMap::new();
         let mut inode_counter: InodeId = ROOT_INODE;
 
-        for node in reader.files() {
-            let fullpath = node.fullpath.to_string_lossy().to_string();
-            // Normalize: backhand stores paths like "/" and "/dir/file"
-            let is_root = fullpath == "/";
+        let root_path = PathBuf::from("/");
+
+        for (node_index, node) in reader.files().enumerate() {
+            let fullpath = &node.fullpath;
+            let is_root = Self::is_root_path(fullpath);
 
             let inode_id = inode_counter;
             inode_counter += 1;
 
-            // Determine parent
-            let (parent_inode, name) = if is_root {
-                (ROOT_INODE, String::new()) // Root is its own parent
+            // Determine parent and name using Path APIs
+            let (parent_inode, mut name) = if is_root {
+                (ROOT_INODE, String::new())
             } else {
-                let relative = fullpath.trim_start_matches('/');
-                let (parent_path, name) = match relative.rsplit_once('/') {
-                    Some((parent, name)) => (format!("/{parent}"), name.to_string()),
-                    None => ("/".to_string(), relative.to_string()),
-                };
-                let parent_inode = *path_to_inode.get(&parent_path).unwrap_or(&ROOT_INODE);
+                let name = fullpath
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let parent_path = fullpath.parent().unwrap_or(&root_path);
+                let parent_inode = path_to_inode
+                    .get(parent_path)
+                    .copied()
+                    .unwrap_or(ROOT_INODE);
                 (parent_inode, name)
             };
+
+            // Resolve case-collisions via name mangling
+            if !is_root {
+                if let Some(parent_entry) = index.entries.get(&parent_inode) {
+                    let mut lower = name.to_lowercase();
+                    let mut attempt = 1;
+                    let original_name = name.clone();
+                    while parent_entry.children_by_lowercase.contains_key(&lower) {
+                        name = format!("{} ({})", original_name, attempt);
+                        lower = name.to_lowercase();
+                        attempt += 1;
+                    }
+                }
+            }
 
             // Extract type, size, mode, symlink target
             let (entry_type, size, mode, symlink_target) = Self::extract_node_info(node);
@@ -180,25 +215,30 @@ impl SquashFsProvider {
                 inode_id,
                 IndexEntry {
                     parent: parent_inode,
-                    name,
+                    name: name.clone(),
                     attributes,
                     symlink_target,
                     children: Vec::new(),
+                    children_by_name: HashMap::new(),
+                    children_by_lowercase: HashMap::new(),
+                    backhand_node_index: node_index,
                     squashfs_path: fullpath.clone(),
                 },
             );
 
-            path_to_inode.insert(fullpath, inode_id);
+            path_to_inode.insert(fullpath.clone(), inode_id);
 
             // Add as child of parent (skip root being its own child)
             if !is_root {
                 if let Some(parent_entry) = index.entries.get_mut(&parent_inode) {
                     parent_entry.children.push(inode_id);
+                    parent_entry.children_by_name.insert(name.clone(), inode_id);
+                    parent_entry.children_by_lowercase.insert(name.to_lowercase(), inode_id);
                 }
             }
         }
 
-        // Sort children by name for consistent enumeration
+        // Sort children by name for consistent enumeration order
         let name_map: HashMap<InodeId, String> = index
             .entries
             .iter()
@@ -242,63 +282,94 @@ impl SquashFsProvider {
         }
     }
 
-    /// Find the backhand node matching a given inode's squashfs path
-    /// and read its file data.
-    fn read_node_data(&self, inode: InodeId) -> CoreResult<Vec<u8>> {
+    /// Check if a path represents the root directory.
+    ///
+    /// Handles both "/" (Unix) and platform-specific root representations.
+    fn is_root_path(path: &Path) -> bool {
+        let s = path.to_string_lossy();
+        s == "/" || s == "\\" || path.components().count() == 0
+    }
+
+    /// Read file data from the backhand filesystem.
+    ///
+    /// Uses the stored node index for O(1) node access (no linear scan).
+    /// Skips to the requested offset and reads only the needed bytes,
+    /// avoiding full decompression into a temporary buffer when possible.
+    fn read_node_data(&self, inode: InodeId, offset: u64, length: u64) -> CoreResult<Vec<u8>> {
         let entry = self.index.get(inode)?;
-        let squashfs_path = &entry.squashfs_path;
+        let node_idx = entry.backhand_node_index;
 
-        // Find the matching node in backhand
-        for node in self.reader.files() {
-            let node_path = node.fullpath.to_string_lossy();
-            if node_path == *squashfs_path {
-                match &node.inner {
-                    backhand::InnerNode::File(file) => {
-                        let mut reader = self.reader.file(file).reader();
-                        let mut data = Vec::new();
-                        reader.read_to_end(&mut data)?;
-                        return Ok(data);
-                    }
-                    _ => return Err(CoreError::NotAFile(inode)),
+        // Access the node directly by its stored position
+        let node = self.reader.files().nth(node_idx).ok_or_else(|| {
+            CoreError::SquashFs(format!(
+                "backhand node index {} out of range for inode {}",
+                node_idx, inode
+            ))
+        })?;
+
+        match &node.inner {
+            backhand::InnerNode::File(file) => {
+                let file_size = file.file_len() as u64;
+
+                // Handle offset past end of file
+                if offset >= file_size {
+                    return Ok(Vec::new());
                 }
-            }
-        }
 
-        Err(CoreError::NotFound(format!(
-            "backhand node for inode {inode} at path {squashfs_path}"
-        )))
+                let actual_length = length.min(file_size - offset) as usize;
+                let mut reader = self.reader.file(file).reader();
+
+                // Skip to offset by reading and discarding bytes.
+                // backhand decompresses block-by-block so we can't seek,
+                // but we avoid allocating the full file just to slice it.
+                if offset > 0 {
+                    std::io::copy(
+                        &mut reader.by_ref().take(offset),
+                        &mut std::io::sink(),
+                    )?;
+                }
+
+                // Read only the requested portion
+                let mut data = vec![0u8; actual_length];
+                reader.read_exact(&mut data)?;
+                Ok(data)
+            }
+            _ => Err(CoreError::NotAFile(inode)),
+        }
     }
 }
 
 impl VirtualFsProvider for SquashFsProvider {
     fn resolve_path(&self, path: &Path) -> CoreResult<Option<InodeId>> {
-        let path_str = path.to_string_lossy();
+        // Use std::path::Component to iterate — this handles both `/` and `\`
+        // separators correctly on all platforms.
+        let components: Vec<_> = path
+            .components()
+            .filter_map(|c| match c {
+                Component::Normal(name) => Some(name.to_string_lossy().to_string()),
+                Component::CurDir => None,   // skip "."
+                Component::RootDir => None,   // skip leading "/"
+                Component::Prefix(_) => None, // skip Windows prefix like "C:\\"
+                Component::ParentDir => None, // skip ".." (not meaningful here)
+            })
+            .collect();
 
-        // Empty path or "." or "/" = root
-        if path_str.is_empty() || path_str == "." || path_str == "/" {
+        // No meaningful components → root
+        if components.is_empty() {
             return Ok(Some(ROOT_INODE));
         }
 
-        // Normalize: strip leading/trailing slashes, convert backslashes
-        let normalized = path_str
-            .replace('\\', "/")
-            .trim_start_matches('/')
-            .trim_end_matches('/')
-            .to_string();
-
-        if normalized.is_empty() {
-            return Ok(Some(ROOT_INODE));
-        }
-
-        // Walk path components
+        // Walk path components through the inode tree
         let mut current_inode = ROOT_INODE;
-        for component in normalized.split('/') {
-            if component.is_empty() {
-                continue;
-            }
-            match self.lookup(current_inode, component)? {
-                Some(entry) => current_inode = entry.attributes.inode,
-                None => return Ok(None),
+        for component in &components {
+            match self.lookup(current_inode, component) {
+                Ok(Some(entry)) => current_inode = entry.attributes.inode,
+                Ok(None) => return Ok(None),
+                Err(CoreError::NotADirectory(_)) => {
+                    // Hit a file mid-path → path doesn't exist
+                    return Ok(None);
+                }
+                Err(e) => return Err(e),
             }
         }
 
@@ -355,17 +426,21 @@ impl VirtualFsProvider for SquashFsProvider {
             return Err(CoreError::NotADirectory(parent_inode));
         }
 
-        for &child_inode in &parent.children {
-            let child = self.index.get(child_inode)?;
-            if child.name == name {
-                return Ok(Some(DirEntry {
+        // O(1) lookup via the pre-built name→inode map with a lowercase fallback
+        let child_inode_opt = parent.children_by_name.get(name).or_else(|| {
+            parent.children_by_lowercase.get(&name.to_lowercase())
+        });
+
+        match child_inode_opt {
+            Some(&child_inode) => {
+                let child = self.index.get(child_inode)?;
+                Ok(Some(DirEntry {
                     name: child.name.clone(),
                     attributes: child.attributes.clone(),
-                }));
+                }))
             }
+            None => Ok(None),
         }
-
-        Ok(None)
     }
 
     fn read_file(&self, inode: InodeId, offset: u64, length: u64) -> CoreResult<Vec<u8>> {
@@ -374,14 +449,7 @@ impl VirtualFsProvider for SquashFsProvider {
             return Err(CoreError::NotAFile(inode));
         }
 
-        // Read full file data from backhand
-        let all_data = self.read_node_data(inode)?;
-
-        // Apply offset and length
-        let start = (offset as usize).min(all_data.len());
-        let end = (start + length as usize).min(all_data.len());
-
-        Ok(all_data[start..end].to_vec())
+        self.read_node_data(inode, offset, length)
     }
 
     fn read_symlink(&self, inode: InodeId) -> CoreResult<String> {
@@ -721,7 +789,10 @@ mod tests {
                 },
                 symlink_target: None,
                 children: vec![],
-                squashfs_path: "/".to_string(),
+                children_by_name: HashMap::new(),
+                children_by_lowercase: HashMap::new(),
+                backhand_node_index: 0,
+                squashfs_path: PathBuf::from("/"),
             },
         );
         assert!(idx.get(1).is_ok());
@@ -754,7 +825,10 @@ mod tests {
                 },
                 symlink_target: None,
                 children: vec![],
-                squashfs_path: "/".to_string(),
+                children_by_name: HashMap::new(),
+                children_by_lowercase: HashMap::new(),
+                backhand_node_index: 0,
+                squashfs_path: PathBuf::from("/"),
             },
         );
         assert_eq!(idx.len(), 1);

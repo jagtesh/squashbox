@@ -34,6 +34,7 @@ fn create_test_fixture() {
 
     let mut writer = FilesystemWriter::default();
     writer.set_current_time();
+    writer.set_root_mode(0o755);
 
     let header = NodeHeader {
         permissions: 0o644,

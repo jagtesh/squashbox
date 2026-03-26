@@ -19,10 +19,12 @@ xz = ["backhand/xz"]
 gzip = ["backhand/gzip"]
 lz4 = ["backhand/lz4"]
 lzo = ["backhand/lzo"]
+# Enable heavy stress tests (require external test fixtures)
+ubuntu_stress = []
 
 [dependencies]
-backhand = { version = "0.25", default-features = false }
-thiserror = "2"
+backhand = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = { workspace = true }
