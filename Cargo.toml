@@ -4,9 +4,29 @@ members = [
     "crates/squashbox-core",
     "crates/squashbox-windows",
 ]
+exclude = ["crates/backhand"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 authors = ["Jagtesh Chadha <jagtesh@gmail.com>"]
 license = "MIT"
+
+[workspace.dependencies]
+# Core
+backhand = { version = "0.25", default-features = false }
+thiserror = "2"
+
+# Windows
+windows-projfs = "0.1.7"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+ctrlc = "3"
+log = "0.4"
+env_logger = "0.11"
+
+# Dev/testing
+tempfile = "3"
+
+[patch.crates-io]
+backhand = { path = "crates/backhand/backhand" }
