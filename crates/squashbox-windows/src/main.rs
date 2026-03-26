@@ -31,6 +31,13 @@ enum Commands {
         file: PathBuf,
         /// Directory to mount the image at (will be created if needed)
         dir: PathBuf,
+        /// Remove stale ProjFS reparse points from DIR before mounting.
+        ///
+        /// A previous mount that wasn't cleanly stopped leaves a reparse point
+        /// on the directory that blocks re-mounting. This flag clears it
+        /// automatically before starting ProjFS.
+        #[arg(long, short = 'f')]
+        force: bool,
     },
 }
 
@@ -40,7 +47,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Image { file } => cmd_image(&file),
-        Commands::Mount { file, dir } => cmd_mount(&file, &dir),
+        Commands::Mount { file, dir, force } => cmd_mount(&file, &dir, force),
     }
 }
 
@@ -182,12 +189,14 @@ fn cmd_image(image_path: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf) -> anyhow::Result<()> {
+fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, force: bool) -> anyhow::Result<()> {
     if !image_path.exists() {
         anyhow::bail!("Image file not found: {}", image_path.display());
     }
 
-    if !mount_point.exists() {
+    if mount_point.exists() && force {
+        cmd_fix(mount_point)?;
+    } else if !mount_point.exists() {
         std::fs::create_dir_all(mount_point)?;
     }
 
@@ -204,7 +213,26 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf) -> anyhow::Result<()> 
     let source = squashbox_windows::projfs_source::SquashboxProjFsSource::new(provider);
 
     log::info!("Starting ProjFS at: {}", mount_point.display());
-    let _pfs = windows_projfs::ProjectedFileSystem::new(mount_point, source)?;
+    let _pfs = windows_projfs::ProjectedFileSystem::new(mount_point, source)
+        .map_err(|e| {
+            // Check for the well-known stale reparse point error.
+            let msg = e.to_string();
+            if msg.contains("0x8007112B") || msg.contains("reparse point") {
+                anyhow::anyhow!(
+                    "Mount failed: '{}' has a stale ProjFS reparse point\n\
+                     from a previous mount that was not cleanly unmounted.\n\n\
+                     Re-run with --force to clear it automatically:\n\
+                     \n  sqb mount --force \"{}\" \"{}\"\n\n\
+                     Original error: {}",
+                    mount_point.display(),
+                    image_path.display(),
+                    mount_point.display(),
+                    e
+                )
+            } else {
+                anyhow::anyhow!("Mount failed: {}", e)
+            }
+        })?;
 
     println!(
         "✓ Mounted {} at {}",
@@ -219,6 +247,74 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf) -> anyhow::Result<()> 
     })?;
     rx.recv()?;
 
-    println!("Unmounting...");
+    print!("Unmounting... ");
+    // Explicitly stop ProjFS. PrjStopVirtualizing is called here, but ProjFS
+    // intentionally leaves a reparse point on the directory for fast restarts.
+    drop(_pfs);
+
+    // Clean up the reparse point so the directory is pristine for next time.
+    // This is idempotent — safe to call even if already clean.
+    if let Err(e) = cmd_fix(mount_point) {
+        // Non-fatal: directory might still be held open (e.g. Explorer).
+        // Inform the user; --force will recover next time.
+        println!("done (with warning)");
+        eprintln!(
+            "Warning: could not remove reparse point from '{}': {}\n\
+             Use 'sqb mount --force' next time if the directory is stale.",
+            mount_point.display(), e
+        );
+    } else {
+        println!("done.");
+    }
+
     Ok(())
 }
+
+
+/// Remove stale ProjFS virtualization reparse points from a directory.
+///
+/// ProjFS marks a directory as a "virtualization root" by attaching a reparse
+/// point (`FILE_ATTRIBUTE_REPARSE_POINT`, 0x400) to it. If the process exits
+/// without cleanly stopping ProjFS, the reparse point is left behind and
+/// prevents re-mounting.
+///
+/// This function is **idempotent**: if the directory is already clean (no
+/// reparse point), it is a no-op. Only when the stale bit is detected does it
+/// remove and recreate the directory.
+fn cmd_fix(dir: &PathBuf) -> anyhow::Result<()> {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+
+    if !dir.exists() {
+        // Nothing to fix — create a clean directory.
+        std::fs::create_dir_all(dir)?;
+        println!("✓ Created clean mount directory: {}", dir.display());
+        return Ok(());
+    }
+
+    // Check whether the directory actually carries a reparse point.
+    let attrs = std::fs::metadata(dir)
+        .map(|m| m.file_attributes())
+        .unwrap_or(0);
+
+    if attrs & FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+        // Already clean — nothing to do.
+        println!("✓ Directory is already clean: {}", dir.display());
+        return Ok(());
+    }
+
+    // Stale reparse point found — clean it up.
+    // ProjFS virtualization roots are always empty on disk (all content is
+    // virtual), so removing and recreating the directory is safe.
+    println!("Removing stale ProjFS reparse point from: {}", dir.display());
+    std::fs::remove_dir_all(dir)
+        .map_err(|e| anyhow::anyhow!(
+            "Could not remove '{}': {}\n\
+             Make sure no processes have the directory open and try again.",
+            dir.display(), e
+        ))?;
+    std::fs::create_dir_all(dir)?;
+    println!("✓ Directory cleaned and ready for mounting: {}", dir.display());
+    Ok(())
+}
+
