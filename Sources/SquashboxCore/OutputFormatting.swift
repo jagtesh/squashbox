@@ -27,7 +27,6 @@ public struct TextBox {
     }
 
     /// Print the top border with title.
-    /// e.g. "  ┌─ Volume Stats ───────────────────────────────┐"
     public func printHeader() {
         let titlePart = "─ \(title) "
         let remainingDashes = width - 4 - titlePart.count
@@ -35,22 +34,18 @@ public struct TextBox {
         print("  ┌\(titlePart)\(dashes)┐")
     }
 
-    /// Print a row with a label and value, right-aligned.
-    /// e.g. "  │ Total inodes:      52271                     │"
+    /// Print a row with a label and value.
     public func printRow(_ label: String, _ value: String) {
         let content = "\(label) \(value)"
-        let padding = contentWidth - content.count
+        let padding = contentWidth - displayWidth(content)
         if padding >= 0 {
             print("  │ \(content)\(String(repeating: " ", count: padding)) │")
         } else {
-            // Content too wide — truncate
-            let trimmed = String(content.prefix(contentWidth))
-            print("  │ \(trimmed) │")
+            print("  │ \(content) │")
         }
     }
 
     /// Print a row with a label and right-justified numeric value.
-    /// e.g. "  │ Total inodes:       52271                    │"
     public func printAlignedRow(_ label: String, _ value: String, valueWidth: Int = 10) {
         let paddedValue = value.count >= valueWidth
             ? value
@@ -60,12 +55,11 @@ public struct TextBox {
 
     /// Print a free-form content line (left-aligned).
     public func printContent(_ text: String) {
-        let padding = contentWidth - text.count
+        let padding = contentWidth - displayWidth(text)
         if padding >= 0 {
             print("  │ \(text)\(String(repeating: " ", count: padding)) │")
         } else {
-            let trimmed = String(text.prefix(contentWidth))
-            print("  │ \(trimmed) │")
+            print("  │ \(text) │")
         }
     }
 
@@ -152,4 +146,31 @@ public func formatDuration(_ seconds: Double) -> String {
     } else {
         return String(format: "%.2f s", seconds)
     }
+}
+
+// MARK: - Display Width
+
+/// Calculate the terminal display width of a string.
+/// Emoji and other wide characters count as 2 columns.
+public func displayWidth(_ string: String) -> Int {
+    var width = 0
+    for scalar in string.unicodeScalars {
+        if scalar.value > 0x1F000 ||  // Emoji & symbols
+           (scalar.value >= 0x2600 && scalar.value <= 0x27BF) ||  // Misc symbols
+           (scalar.value >= 0x1F300 && scalar.value <= 0x1FAFF) { // Extended emoji
+            width += 2
+        } else {
+            width += 1
+        }
+    }
+    // Emoji sequences (ZWJ, variation selectors) are part of multi-scalar
+    // grapheme clusters — subtract their extra scalars.
+    let scalarCount = string.unicodeScalars.count
+    let charCount = string.count
+    if scalarCount > charCount {
+        // Each grapheme cluster with extra scalars (ZWJ, VS16) adds
+        // phantom width. Subtract the invisible joining scalars.
+        width -= (scalarCount - charCount)
+    }
+    return width
 }
