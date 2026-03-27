@@ -35,3 +35,5 @@ Package.resolved
 vendor/*/windows/
 vendor/*/macos/
 vendor/*/linux/
+vendor/*.zip
+vendor/*-extract/
