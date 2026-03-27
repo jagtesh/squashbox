@@ -76,7 +76,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 [[package]]
 name = "backhand"
 version = "0.25.1"
-source = "git+https://github.com/jagtesh/backhand?rev=5957ae567543ba04d9545a0b35e579e5f8ea8396#5957ae567543ba04d9545a0b35e579e5f8ea8396"
+source = "git+https://github.com/jagtesh/backhand?rev=894988816e5b43a508fd8db28c08463ccca49bd7#894988816e5b43a508fd8db28c08463ccca49bd7"
 dependencies = [
  "deku",
  "flate2",
