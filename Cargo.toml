@@ -34,4 +34,4 @@ tempfile = "3"
 # and maps Windows-illegal characters (backslash, colon, etc.) to Unicode
 # Private Use Area codepoints so Linux filenames are losslessly round-trippable.
 # See: https://github.com/jagtesh/backhand
-backhand = { git = "https://github.com/jagtesh/backhand", rev = "894988816e5b43a508fd8db28c08463ccca49bd7" }
+backhand = { git = "https://github.com/jagtesh/backhand", rev = "43dcb51" }

@@ -12,48 +12,6 @@ use std::path::{Component, Path, PathBuf};
 /// Default page size for directory listing pagination.
 const DIR_PAGE_SIZE: usize = 64;
 
-/// Map a raw SquashFS filename to a safe display name for the host OS.
-///
-/// On Windows, certain characters are illegal in Win32 filesystem names:
-/// backslash, colon, asterisk, question mark, double-quote, angle brackets,
-/// and pipe. A SquashFS image from Linux may legally contain all of these.
-///
-/// We map them to their Unicode Private Use Area (PUA) equivalents in the
-/// range U+F000–U+F0FF, which is the same strategy used by WSL2 when
-/// surfacing Linux-native filenames through the Windows filesystem API.
-/// This keeps the names lossless and round-trippable: the index stays
-/// internally consistent, and Explorer can display the PUA glyphs safely.
-///
-/// On Linux and macOS no transformation is needed — all POSIX-legal
-/// filename bytes are legal filesystem name characters.
-#[cfg(windows)]
-fn pua_map_name(name: &str) -> String {
-    let mut out = String::with_capacity(name.len());
-    for b in name.bytes() {
-        match b {
-            b'\\' => out.push('\u{F05C}'),
-            b':'  => out.push('\u{F03A}'),
-            b'*'  => out.push('\u{F02A}'),
-            b'?'  => out.push('\u{F03F}'),
-            b'"'  => out.push('\u{F022}'),
-            b'<'  => out.push('\u{F03C}'),
-            b'>'  => out.push('\u{F03E}'),
-            b'|'  => out.push('\u{F07C}'),
-            c if c < 0x20 => out.push(
-                char::from_u32(0xF000 + c as u32).unwrap_or('\u{FFFD}')
-            ),
-            _ => out.push(b as char),
-        }
-    }
-    out
-}
-
-/// On non-Windows platforms filenames are already legal — identity function.
-#[cfg(not(windows))]
-#[inline(always)]
-fn pua_map_name(name: &str) -> String {
-    name.to_owned()
-}
 
 /// An entry in the inode index, representing a single node in the FS tree.
 #[derive(Debug, Clone)]
@@ -214,17 +172,13 @@ impl SquashFsProvider {
             let (parent_inode, mut name) = if is_root {
                 (ROOT_INODE, String::new())
             } else {
-                // Extract the raw filename from backhand's pre-parsed fullpath.
-                // backhand now returns the raw SquashFS bytes without any host-OS
-                // path interpretation (our fork fix). We then apply the
-                // platform-specific display mapping:
-                // - On Windows: PUA-map characters illegal in Win32 names
-                // - On Linux/macOS: identity (all POSIX bytes are legal)
-                let raw_name = fullpath
+                // backhand's DirEntry::name() already applies platform-specific
+                // PUA mapping on Windows (WSL2-compatible, see dir.rs docs).
+                // The fullpath therefore contains safe single-component names.
+                let name = fullpath
                     .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
-                let name = pua_map_name(&raw_name);
                 let parent_path = fullpath.parent().unwrap_or(&root_path);
                 let parent_inode = path_to_inode
                     .get(parent_path)

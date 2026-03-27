@@ -1,8 +1,9 @@
 //! Squashbox CLI (`sqb`) — SquashFS native filesystem tools for Windows.
 //!
 //! Usage:
-//!   sqb image <FILE>        Print image info (inodes, size, block size, root entries)
-//!   sqb mount <FILE> <DIR>  Mount a SquashFS image as a ProjFS projected filesystem
+//!   sqb image  <FILE>        Print image info (inodes, size, block size, root entries)
+//!   sqb mount  <FILE> <DIR>  Mount a SquashFS image as a ProjFS projected filesystem
+//!   sqb umount <DIR>         Clean up a stale ProjFS mount point
 
 use clap::{Parser, Subcommand};
 use squashbox_core::provider::VirtualFsProvider;
@@ -39,6 +40,15 @@ enum Commands {
         #[arg(long, short = 'f')]
         force: bool,
     },
+    /// Clean up a stale ProjFS mount point
+    ///
+    /// Removes the ProjFS virtualization reparse point from a directory that
+    /// was left behind by a previous mount that wasn't cleanly unmounted.
+    /// This is equivalent to 'mount --force' without starting a new mount.
+    Umount {
+        /// Directory with a stale ProjFS reparse point to clean up
+        dir: PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -48,6 +58,7 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Image { file } => cmd_image(&file),
         Commands::Mount { file, dir, force } => cmd_mount(&file, &dir, force),
+        Commands::Umount { dir } => cmd_umount(&dir),
     }
 }
 
@@ -221,9 +232,12 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, force: bool) -> anyhow
                 anyhow::anyhow!(
                     "Mount failed: '{}' has a stale ProjFS reparse point\n\
                      from a previous mount that was not cleanly unmounted.\n\n\
-                     Re-run with --force to clear it automatically:\n\
+                     To clean it up:\n\
+                     \n  sqb umount \"{}\"\n\n\
+                     Or re-run with --force to clear it automatically:\n\
                      \n  sqb mount --force \"{}\" \"{}\"\n\n\
                      Original error: {}",
+                    mount_point.display(),
                     mount_point.display(),
                     image_path.display(),
                     mount_point.display(),
@@ -274,47 +288,194 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, force: bool) -> anyhow
 /// Remove stale ProjFS virtualization reparse points from a directory.
 ///
 /// ProjFS marks a directory as a "virtualization root" by attaching a reparse
-/// point (`FILE_ATTRIBUTE_REPARSE_POINT`, 0x400) to it. If the process exits
-/// without cleanly stopping ProjFS, the reparse point is left behind and
-/// prevents re-mounting.
+/// point (`IO_REPARSE_TAG_PROJFS`, `FILE_ATTRIBUTE_REPARSE_POINT` 0x400) to it.
+/// If the process exits without cleanly calling `PrjStopVirtualizing`, the
+/// reparse point is left behind and prevents re-mounting.
+///
+/// We call `FSCTL_DELETE_REPARSE_POINT` via `DeviceIoControl` — the proper
+/// Win32 API for removing reparse points at the NTFS level without deleting
+/// the directory. This is the same API that `fsutil reparsepoint delete` uses.
+///
+/// Reference: https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_delete_reparse_point
 ///
 /// This function is **idempotent**: if the directory is already clean (no
-/// reparse point), it is a no-op. Only when the stale bit is detected does it
-/// remove and recreate the directory.
+/// reparse point), it is a no-op.
 fn cmd_fix(dir: &PathBuf) -> anyhow::Result<()> {
     use std::os::windows::fs::MetadataExt;
     const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
 
     if !dir.exists() {
-        // Nothing to fix — create a clean directory.
         std::fs::create_dir_all(dir)?;
         println!("✓ Created clean mount directory: {}", dir.display());
         return Ok(());
     }
 
-    // Check whether the directory actually carries a reparse point.
     let attrs = std::fs::metadata(dir)
         .map(|m| m.file_attributes())
         .unwrap_or(0);
 
     if attrs & FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-        // Already clean — nothing to do.
         println!("✓ Directory is already clean: {}", dir.display());
         return Ok(());
     }
 
-    // Stale reparse point found — clean it up.
-    // ProjFS virtualization roots are always empty on disk (all content is
-    // virtual), so removing and recreating the directory is safe.
     println!("Removing stale ProjFS reparse point from: {}", dir.display());
-    std::fs::remove_dir_all(dir)
-        .map_err(|e| anyhow::anyhow!(
-            "Could not remove '{}': {}\n\
-             Make sure no processes have the directory open and try again.",
-            dir.display(), e
-        ))?;
-    std::fs::create_dir_all(dir)?;
-    println!("✓ Directory cleaned and ready for mounting: {}", dir.display());
+
+    match delete_reparse_point(dir) {
+        Ok(()) => {
+            println!("✓ Reparse point removed: {}", dir.display());
+        }
+        Err(e) => {
+            // Fall back to directory removal if the FSCTL call fails
+            // (e.g. insufficient privileges, locked handle).
+            eprintln!("Warning: FSCTL_DELETE_REPARSE_POINT failed: {}", e);
+            eprintln!("Falling back to directory cleanup...");
+            std::fs::remove_dir_all(dir)
+                .map_err(|e| anyhow::anyhow!(
+                    "Could not remove '{}': {}\n\
+                     Make sure no processes have the directory open and try again.",
+                    dir.display(), e
+                ))?;
+            std::fs::create_dir_all(dir)?;
+            println!("✓ Directory cleaned and ready for mounting: {}", dir.display());
+        }
+    }
+
     Ok(())
+}
+
+/// Call FSCTL_DELETE_REPARSE_POINT on a directory via the Win32 API.
+///
+/// This is equivalent to `fsutil reparsepoint delete <path>`.
+///
+/// Steps:
+/// 1. Open the directory with FILE_FLAG_OPEN_REPARSE_POINT + WRITE
+/// 2. Read the current reparse tag with FSCTL_GET_REPARSE_POINT
+/// 3. Send FSCTL_DELETE_REPARSE_POINT with the matching tag
+fn delete_reparse_point(dir: &PathBuf) -> anyhow::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr;
+
+    // Win32 constants
+    const GENERIC_WRITE: u32 = 0x40000000;
+    const OPEN_EXISTING: u32 = 3;
+    const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x02000000;
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x00200000;
+    const FSCTL_GET_REPARSE_POINT: u32 = 0x000900A8;
+    const FSCTL_DELETE_REPARSE_POINT: u32 = 0x000900AC;
+    const INVALID_HANDLE_VALUE: isize = -1;
+
+    #[repr(C)]
+    struct ReparseDataBuffer {
+        reparse_tag: u32,
+        reparse_data_length: u16,
+        reserved: u16,
+    }
+
+    extern "system" {
+        fn CreateFileW(
+            lpFileName: *const u16,
+            dwDesiredAccess: u32,
+            dwShareMode: u32,
+            lpSecurityAttributes: *const u8,
+            dwCreationDisposition: u32,
+            dwFlagsAndAttributes: u32,
+            hTemplateFile: isize,
+        ) -> isize;
+        fn DeviceIoControl(
+            hDevice: isize,
+            dwIoControlCode: u32,
+            lpInBuffer: *const u8,
+            nInBufferSize: u32,
+            lpOutBuffer: *mut u8,
+            nOutBufferSize: u32,
+            lpBytesReturned: *mut u32,
+            lpOverlapped: *const u8,
+        ) -> i32;
+        fn CloseHandle(hObject: isize) -> i32;
+        fn GetLastError() -> u32;
+    }
+
+    // Convert path to wide string
+    let wide_path: Vec<u16> = dir.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+
+    // Open directory with reparse point access
+    let handle = unsafe {
+        CreateFileW(
+            wide_path.as_ptr(),
+            GENERIC_WRITE,
+            0, // no sharing
+            ptr::null(),
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            0,
+        )
+    };
+
+    if handle == INVALID_HANDLE_VALUE {
+        let err = unsafe { GetLastError() };
+        anyhow::bail!("CreateFileW failed on '{}': Win32 error {}", dir.display(), err);
+    }
+
+    // Read the current reparse point to get the tag
+    let mut buf = [0u8; 1024];
+    let mut bytes_returned: u32 = 0;
+    let ok = unsafe {
+        DeviceIoControl(
+            handle,
+            FSCTL_GET_REPARSE_POINT,
+            ptr::null(),
+            0,
+            buf.as_mut_ptr(),
+            buf.len() as u32,
+            &mut bytes_returned,
+            ptr::null(),
+        )
+    };
+
+    if ok == 0 {
+        let err = unsafe { GetLastError() };
+        unsafe { CloseHandle(handle) };
+        anyhow::bail!("FSCTL_GET_REPARSE_POINT failed: Win32 error {}", err);
+    }
+
+    // Extract the reparse tag from the buffer header
+    let reparse_tag = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+
+    // Delete the reparse point using just the tag
+    let delete_buf = ReparseDataBuffer {
+        reparse_tag,
+        reparse_data_length: 0,
+        reserved: 0,
+    };
+
+    let ok = unsafe {
+        DeviceIoControl(
+            handle,
+            FSCTL_DELETE_REPARSE_POINT,
+            &delete_buf as *const _ as *const u8,
+            std::mem::size_of::<ReparseDataBuffer>() as u32,
+            ptr::null_mut(),
+            0,
+            &mut bytes_returned,
+            ptr::null(),
+        )
+    };
+
+    unsafe { CloseHandle(handle) };
+
+    if ok == 0 {
+        let err = unsafe { GetLastError() };
+        anyhow::bail!("FSCTL_DELETE_REPARSE_POINT failed: Win32 error {}", err);
+    }
+
+    Ok(())
+}
+
+fn cmd_umount(dir: &PathBuf) -> anyhow::Result<()> {
+    if !dir.exists() {
+        anyhow::bail!("Directory not found: {}", dir.display());
+    }
+    cmd_fix(dir)
 }
 
