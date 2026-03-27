@@ -25,14 +25,21 @@ let package = Package(
 
         // ─── SOURCES (format plugins, platform-agnostic) ────────────────
         //
-        // CSquashFS: C bridging target for libsqfs
-        // TODO: Set up once libsqfs acquisition strategy is decided.
-        //       For now, SquashFsSource compiles without CSquashFS and
-        //       the provider implementation is stubbed.
+        // CSquashFS: C bridging target for libsqfs (squashfs-tools-ng)
         //
         .target(
+            name: "CSquashFS",
+            path: "Sources/CSquashFS",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-L", "vendor/libsqfs/windows/lib",
+                ]),
+                .linkedLibrary("squashfs"),
+            ]
+        ),
+        .target(
             name: "SquashFsSource",
-            dependencies: ["SquashboxCore"],
+            dependencies: ["SquashboxCore", "CSquashFS"],
             path: "Sources/SquashFsSource"
         ),
 

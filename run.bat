@@ -4,4 +4,4 @@ set "PATH=C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asse
 set "SDKROOT=C:\Users\Macan User\AppData\Local\Programs\Swift\Platforms\6.2.4\Windows.platform\Developer\SDKs\Windows.sdk"
 REM Add libsqfs DLLs to PATH for runtime loading
 set "PATH=%~dp0vendor\libsqfs\windows\bin;%PATH%"
-swift test 2>&1
+swift run sqb %* 2>&1

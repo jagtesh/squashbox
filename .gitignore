@@ -25,3 +25,13 @@ crates/squashbox-core/tests/fixtures/*.sqsh
 build_errors.txt
 test_output.txt
 stress_output.txt
+
+# Swift build artifacts
+.build/
+.swiftpm/
+Package.resolved
+
+# Vendored binaries (headers are committed, binaries are not)
+vendor/*/windows/
+vendor/*/macos/
+vendor/*/linux/
