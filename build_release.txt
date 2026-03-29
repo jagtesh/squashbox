@@ -1,0 +1,399 @@
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for production...
+[2/126] Write sources
+[7/126] Compiling zstd_ddict.c
+[8/126] Compiling zstd_compress_literals.c
+[9/126] Compiling zstd_compress_sequences.c
+[10/126] Compiling zstd_compress_superblock.c
+[11/126] Compiling zstd_ldm.c
+[12/126] Compiling xxhash.c
+[13/126] Compiling zstd_decompress.c
+[14/126] Write swift-version-17E5B5F0176EF40B.txt
+[15/126] Compiling zstdmt_compress.c
+[16/126] Compiling threading.c
+[17/126] Compiling hist.c
+[18/126] Compiling debug.c
+[19/126] Compiling CZlib uncompr.c
+[20/126] Compiling zstd_common.c
+[21/126] Compiling CZlib zutil.c
+[22/126] Compiling fse_compress.c
+[23/126] Compiling CZlib inftrees.c
+[24/126] Compiling huf_compress.c
+[25/126] Compiling CZlib inffast.c
+[26/126] Compiling CZlib trees.c
+[27/126] Compiling CZlib compress.c
+[28/126] Compiling error_private.c
+[29/126] Compiling CZlib infback.c
+[30/126] Compiling CZlib crc32.c
+[31/126] Compiling fse_decompress.c
+[32/126] Compiling entropy_common.c
+[33/126] Compiling pool.c
+[34/126] Compiling CZlib adler32.c
+[35/126] Compiling x86.c
+[36/126] Compiling sparc.c
+[37/126] Compiling simple_decoder.c
+[38/126] Compiling simple_encoder.c
+[39/126] Compiling zstd_opt.c
+[40/126] Compiling simple_coder.c
+[41/126] Compiling powerpc.c
+[42/126] Compiling ia64.c
+[43/126] Compiling CZlib deflate.c
+[44/126] Compiling CZlib inflate.c
+[44/126] Compiling riscv.c
+[44/126] Compiling arm64.c
+[47/126] Compiling armthumb.c
+[48/126] Compiling arm.c
+[49/126] Compiling price_table.c
+[50/126] Compiling lzma_encoder_presets.c
+[51/126] Compiling fastpos_table.c
+[52/126] Compiling zstd_fast.c
+[53/126] Compiling lzma2_encoder.c
+[54/126] Compiling lzma2_decoder.c
+[54/126] Compiling lzma_encoder_optimum_fast.c
+[56/126] Compiling lz_encoder.c
+[57/126] Compiling delta_decoder.c
+[57/126] Compiling zstd_double_fast.c
+[59/126] Compiling lz_decoder.c
+[60/126] Compiling delta_common.c
+[61/126] Compiling vli_size.c
+[62/126] Compiling delta_encoder.c
+[63/126] Compiling huf_decompress.c
+[64/126] Compiling lz_encoder_mf.c
+[65/126] Compiling zstd_compress.c
+[66/126] Compiling vli_encoder.c
+[67/126] Compiling vli_decoder.c
+[68/126] Compiling CProjFS cprojfs_shim.c
+[69/126] Compiling stream_flags_encoder.c
+[70/126] Compiling lzma_encoder.c
+[71/126] Compiling stream_flags_decoder.c
+[72/126] Compiling stream_flags_common.c
+[73/126] Compiling stream_encoder.c
+[74/126] Compiling stream_buffer_encoder.c
+[75/126] Compiling stream_buffer_decoder.c
+[76/126] Compiling stream_decoder.c
+[77/126] Compiling microlzma_encoder.c
+[78/126] Compiling microlzma_decoder.c
+[79/126] Compiling lzma_encoder_optimum_normal.c
+[80/126] Compiling lzip_decoder.c
+[81/126] Compiling index_encoder.c
+[82/126] Compiling filter_flags_encoder.c
+[83/126] Compiling hardware_physmem.c
+[84/126] Compiling index_hash.c
+[85/126] Compiling string_conversion.c
+[86/126] Compiling index_decoder.c
+[86/126] Compiling filter_flags_decoder.c
+[88/126] Compiling lzma_decoder.c
+[89/126] Compiling filter_decoder.c
+[90/126] Compiling filter_encoder.c
+[91/126] Compiling zstd_decompress_block.c
+[92/126] Compiling filter_buffer_encoder.c
+[93/126] Compiling filter_buffer_decoder.c
+[94/126] Compiling filter_common.c
+[95/126] Compiling easy_encoder.c
+[95/126] Compiling easy_preset.c
+[97/126] Compiling easy_decoder_memusage.c
+[98/126] Compiling easy_encoder_memusage.c
+[99/126] Compiling file_info.c
+[100/126] Compiling index.c
+[100/126] Compiling easy_buffer_encoder.c
+[102/126] Compiling block_util.c
+[103/126] Compiling block_buffer_decoder.c
+[103/126] Compiling block_header_encoder.c
+[105/126] Compiling block_header_decoder.c
+[106/126] Compiling block_decoder.c
+[107/126] Compiling alone_encoder.c
+[108/126] Write sources
+[110/126] Compiling common.c
+[111/126] Compiling auto_decoder.c
+[112/126] Compiling block_encoder.c
+[113/126] Compiling block_buffer_encoder.c
+[114/126] Compiling crc64_table.c
+[115/126] Compiling tuklib_physmem.c
+[116/127] Compiling crc32_table.c
+[117/128] Compiling alone_decoder.c
+[118/128] Compiling tuklib_cpucores.c
+[119/128] Compiling crc64_fast.c
+[120/128] Compiling check.c
+[121/128] Compiling crc32_fast.c
+[122/128] Compiling sha256.c
+[123/128] Compiling zstd_lazy.c
+[125/129] Compiling ArgumentParserToolInfo ToolInfo.swift
+[126/130] Compiling SquashboxCore Errors.swift
+[127/131] Compiling ProjFsDriver ProjFsDriver.swift
+[128/131] Compiling SwiftSquashFS BinaryReader.swift
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'crc32.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'crc32.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'deflate.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'deflate.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'gzguts.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'gzguts.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'inffast.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'inffast.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'inffixed.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'inffixed.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'inflate.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'inflate.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'inftrees.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'inftrees.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'trees.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'trees.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZlib\include\CZlib.h:9:1: warning: umbrella header for module 'CZlib' does not include header 'zutil.h'
+
+7 | 
+
+8 | #endif // CZLIB_SHIM_H
+
+9 | 
+
+  | `- warning: umbrella header for module 'CZlib' does not include header 'zutil.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\include\CZstd.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\include\CZstd.h:11:1: warning: umbrella header for module 'CZstd' does not include header 'zdict.h'
+
+ 9 | 
+
+10 | #endif // CZSTD_SHIM_H
+
+11 | 
+
+   | `- warning: umbrella header for module 'CZstd' does not include header 'zdict.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\include\CZstd.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\include\CZstd.h:11:1: warning: umbrella header for module 'CZstd' does not include header 'zstd.h'
+
+ 9 | 
+
+10 | #endif // CZSTD_SHIM_H
+
+11 | 
+
+   | `- warning: umbrella header for module 'CZstd' does not include header 'zstd.h'
+
+
+
+<module-includes>:1:10: note: in file included from <module-includes>:1:
+
+1 | #include "C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\include\CZstd.h"
+
+  |          `- note: in file included from <module-includes>:1:
+
+2 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\include\CZstd.h:11:1: warning: umbrella header for module 'CZstd' does not include header 'zstd_errors.h'
+
+ 9 | 
+
+10 | #endif // CZSTD_SHIM_H
+
+11 | 
+
+   | `- warning: umbrella header for module 'CZstd' does not include header 'zstd_errors.h'
+
+[129/132] Compiling SquashFsSource SquashFsSource.swift
+[130/132] Compiling ArgumentParser BashCompletionsGenerator.swift
+[131/133] Compiling sqb Sqb.swift
+[131/133] Write Objects.LinkFileList
+lld-link: warning: C:\Users\Macan User\code\jagtesh\squashbox\.build\x86_64-unknown-windows-msvc\release\SwiftSquashFS.build\XzCompressor.swift.o: locally defined symbol imported: lzma_stream_buffer_decode (defined in C:\Users\Macan User\code\jagtesh\squashbox\.build\x86_64-unknown-windows-msvc\release\CLzma.build\common\stream_buffer_decoder.c.o) [LNK4217]
+
+lld-link: warning: C:\Users\Macan User\code\jagtesh\squashbox\.build\x86_64-unknown-windows-msvc\release\SwiftSquashFS.build\XzCompressor.swift.o: locally defined symbol imported: lzma_easy_buffer_encode (defined in C:\Users\Macan User\code\jagtesh\squashbox\.build\x86_64-unknown-windows-msvc\release\CLzma.build\common\easy_buffer_encoder.c.o) [LNK4217]
+
+lld-link: warning: C:\Users\Macan User\code\jagtesh\squashbox\.build\x86_64-unknown-windows-msvc\release\SwiftSquashFS.build\XzCompressor.swift.o: locally defined symbol imported: lzma_stream_buffer_bound (defined in C:\Users\Macan User\code\jagtesh\squashbox\.build\x86_64-unknown-windows-msvc\release\CLzma.build\common\stream_buffer_encoder.c.o) [LNK4217]
+
+[132/133] Linking sqb.exe
+Build complete! (99.69s)
+warning: unable to create symbolic link at C:\Users\Macan User\code\jagtesh\squashbox\.build\release: Error Domain=NSCocoaErrorDomain Code=512 "(null)"UserInfo={NSURL=file:///C:/Users/Macan%20User/code/jagtesh/squashbox/.build/release, NSFilePath=C:\Users\Macan User\code\jagtesh\squashbox\.build\release, NSUnderlyingError=Win32Error(code: 1314)}

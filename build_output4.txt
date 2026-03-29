@@ -1,0 +1,710 @@
+Swift version:
+Swift version 6.2.4 (swift-6.2.4-RELEASE)
+Target: x86_64-unknown-windows-msvc
+Build config: +assertions
+
+Building...
+[0/1] Planning build
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/38] Compiling hist.c
+[3/38] Compiling zstd_ddict.c
+[4/38] Compiling zstd_compress_superblock.c
+[5/38] Compiling zstd_compress_literals.c
+[6/38] Compiling zstd_compress_sequences.c
+[7/38] Compiling zstd_ldm.c
+[8/38] Compiling zstd_decompress.c
+[9/38] Write swift-version-17E5B5F0176EF40B.txt
+[10/38] Compiling huf_compress.c
+[11/38] Compiling zstd_double_fast.c
+[12/38] Compiling xxhash.c
+[13/38] Compiling zstd_fast.c
+[14/38] Compiling zstd_opt.c
+[15/38] Compiling debug.c
+[16/38] Compiling huf_decompress.c
+[17/38] Compiling zstd_decompress_block.c
+[18/38] Compiling CZlib adler32.c
+[19/37] Compiling zstd_compress.c
+[20/37] Compiling zstd_common.c
+[21/37] Compiling fse_compress.c
+[22/37] Compiling fse_decompress.c
+[23/37] Compiling error_private.c
+[24/37] Compiling entropy_common.c
+[25/37] Compiling threading.c
+[26/37] Compiling zstdmt_compress.c
+[27/37] Compiling pool.c
+[29/37] Emitting module SquashboxCore
+[30/39] Compiling zstd_lazy.c
+error: emit-module command failed with exit code 1 (use -v to see invocation)
+[32/55] Emitting module ProjFsDriver
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:19:32: error: 'UUID' is ambiguous for type lookup in this context
+
+ 17 | 
+
+ 18 |     /// Active enumeration sessions (GUID ΓåÆ already-enumerated flag).
+
+ 19 |     private var enumSessions: [UUID: Bool] = [:]
+
+    |                                `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 20 |     private let lock = NSLock()
+
+ 21 | 
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:78:35: error: 'UUID' is ambiguous for type lookup in this context
+
+ 76 |     // MARK: - Enum Session Management
+
+ 77 | 
+
+ 78 |     func startEnumSession(_ guid: UUID) {
+
+    |                                   `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 79 |         lock.lock()
+
+ 80 |         enumSessions[guid] = false
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:84:33: error: 'UUID' is ambiguous for type lookup in this context
+
+ 82 |     }
+
+ 83 | 
+
+ 84 |     func endEnumSession(_ guid: UUID) {
+
+    |                                 `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 85 |         lock.lock()
+
+ 86 |         enumSessions.removeValue(forKey: guid)
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:90:29: error: 'UUID' is ambiguous for type lookup in this context
+
+ 88 |     }
+
+ 89 | 
+
+ 90 |     func isEnumDone(_ guid: UUID) -> Bool {
+
+    |                             `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 91 |         lock.lock()
+
+ 92 |         defer { lock.unlock() }
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:96:31: error: 'UUID' is ambiguous for type lookup in this context
+
+ 94 |     }
+
+ 95 | 
+
+ 96 |     func markEnumDone(_ guid: UUID) {
+
+    |                               `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 97 |         lock.lock()
+
+ 98 |         enumSessions[guid] = true
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:122:57: error: 'UUID' is ambiguous for type lookup in this context
+
+120 | 
+
+121 | /// Convert a GUID to a Swift UUID.
+
+122 | private func guidToUUID(_ guid: UnsafePointer<GUID>) -> UUID {
+
+    |                                                         `- error: 'UUID' is ambiguous for type lookup in this context
+
+123 |     let g = guid.pointee
+
+124 |     return UUID(uuid: (
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:229:38: error: 'provider' is inaccessible due to 'private' protection level
+
+ 14 | public final class ProjFsDriver: @unchecked Sendable {
+
+ 15 |     /// The underlying filesystem provider.
+
+ 16 |     private let provider: any VirtualFsProvider
+
+    |                 `- note: 'provider' declared here
+
+ 17 | 
+
+ 18 |     /// Active enumeration sessions (GUID ΓåÆ already-enumerated flag).
+
+    :
+
+227 | 
+
+228 |     do {
+
+229 |         guard let inode = try driver.provider.resolvePath(path) else {
+
+    |                                      `- error: 'provider' is inaccessible due to 'private' protection level
+
+230 |             return -2147024894 // FILE_NOT_FOUND
+
+231 |         }
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:251:38: error: 'provider' is inaccessible due to 'private' protection level
+
+ 14 | public final class ProjFsDriver: @unchecked Sendable {
+
+ 15 |     /// The underlying filesystem provider.
+
+ 16 |     private let provider: any VirtualFsProvider
+
+    |                 `- note: 'provider' declared here
+
+ 17 | 
+
+ 18 |     /// Active enumeration sessions (GUID ΓåÆ already-enumerated flag).
+
+    :
+
+249 | 
+
+250 |     do {
+
+251 |         guard let inode = try driver.provider.resolvePath(path) else {
+
+    |                                      `- error: 'provider' is inaccessible due to 'private' protection level
+
+252 |             return -2147024894
+
+253 |         }
+
+[33/55] Compiling ProjFsDriver ProjFsDriver.swift
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:19:32: error: 'UUID' is ambiguous for type lookup in this context
+
+ 17 | 
+
+ 18 |     /// Active enumeration sessions (GUID ΓåÆ already-enumerated flag).
+
+ 19 |     private var enumSessions: [UUID: Bool] = [:]
+
+    |                                `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 20 |     private let lock = NSLock()
+
+ 21 | 
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:78:35: error: 'UUID' is ambiguous for type lookup in this context
+
+ 76 |     // MARK: - Enum Session Management
+
+ 77 | 
+
+ 78 |     func startEnumSession(_ guid: UUID) {
+
+    |                                   `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 79 |         lock.lock()
+
+ 80 |         enumSessions[guid] = false
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:84:33: error: 'UUID' is ambiguous for type lookup in this context
+
+ 82 |     }
+
+ 83 | 
+
+ 84 |     func endEnumSession(_ guid: UUID) {
+
+    |                                 `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 85 |         lock.lock()
+
+ 86 |         enumSessions.removeValue(forKey: guid)
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:90:29: error: 'UUID' is ambiguous for type lookup in this context
+
+ 88 |     }
+
+ 89 | 
+
+ 90 |     func isEnumDone(_ guid: UUID) -> Bool {
+
+    |                             `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 91 |         lock.lock()
+
+ 92 |         defer { lock.unlock() }
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:96:31: error: 'UUID' is ambiguous for type lookup in this context
+
+ 94 |     }
+
+ 95 | 
+
+ 96 |     func markEnumDone(_ guid: UUID) {
+
+    |                               `- error: 'UUID' is ambiguous for type lookup in this context
+
+ 97 |         lock.lock()
+
+ 98 |         enumSessions[guid] = true
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:122:57: error: 'UUID' is ambiguous for type lookup in this context
+
+120 | 
+
+121 | /// Convert a GUID to a Swift UUID.
+
+122 | private func guidToUUID(_ guid: UnsafePointer<GUID>) -> UUID {
+
+    |                                                         `- error: 'UUID' is ambiguous for type lookup in this context
+
+123 |     let g = guid.pointee
+
+124 |     return UUID(uuid: (
+
+
+
+C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared\rpcdce.h:83:14: note: found this candidate
+
+  81 | #ifndef UUID_DEFINED
+
+  82 | #define UUID_DEFINED
+
+  83 | typedef GUID UUID;
+
+     |              `- note: found this candidate
+
+  84 | #ifndef uuid_t
+
+  85 | #define uuid_t UUID
+
+
+
+FoundationEssentials.UUID:2:15: note: found this candidate
+
+ 1 | @available(macOS 10.8, iOS 6.0, tvOS 9.0, watchOS 2.0, *)
+
+ 2 | public struct UUID : Hashable, Equatable, CustomStringConvertible, Sendable {
+
+   |               `- note: found this candidate
+
+ 3 |     public private(set) var uuid: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8) { get }
+
+ 4 |     public init()
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:229:38: error: 'provider' is inaccessible due to 'private' protection level
+
+ 14 | public final class ProjFsDriver: @unchecked Sendable {
+
+ 15 |     /// The underlying filesystem provider.
+
+ 16 |     private let provider: any VirtualFsProvider
+
+    |                 `- note: 'provider' declared here
+
+ 17 | 
+
+ 18 |     /// Active enumeration sessions (GUID ΓåÆ already-enumerated flag).
+
+    :
+
+227 | 
+
+228 |     do {
+
+229 |         guard let inode = try driver.provider.resolvePath(path) else {
+
+    |                                      `- error: 'provider' is inaccessible due to 'private' protection level
+
+230 |             return -2147024894 // FILE_NOT_FOUND
+
+231 |         }
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\Drivers\Windows\ProjFsDriver\ProjFsDriver.swift:251:38: error: 'provider' is inaccessible due to 'private' protection level
+
+ 14 | public final class ProjFsDriver: @unchecked Sendable {
+
+ 15 |     /// The underlying filesystem provider.
+
+ 16 |     private let provider: any VirtualFsProvider
+
+    |                 `- note: 'provider' declared here
+
+ 17 | 
+
+ 18 |     /// Active enumeration sessions (GUID ΓåÆ already-enumerated flag).
+
+    :
+
+249 | 
+
+250 |     do {
+
+251 |         guard let inode = try driver.provider.resolvePath(path) else {
+
+    |                                      `- error: 'provider' is inaccessible due to 'private' protection level
+
+252 |             return -2147024894
+
+253 |         }
+
+^C

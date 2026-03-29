@@ -3,14 +3,17 @@ import SquashboxCore
 import SquashFsSource
 import Foundation
 
+#if os(Windows)
+import ProjFsDriver
+#endif
+
 @main
 struct Sqb: ParsableCommand {
     static var configuration: CommandConfiguration {
         var subcommands: [ParsableCommand.Type] = [ImageCommand.self]
-        // TODO: Add MountCommand and UmountCommand when ProjFsDriver is ready
-        // #if os(Windows)
-        // subcommands += [MountCommand.self, UmountCommand.self]
-        // #endif
+        #if os(Windows)
+        subcommands += [MountCommand.self, UmountCommand.self]
+        #endif
         return CommandConfiguration(
             commandName: "sqb",
             abstract: "Squashbox — native SquashFS tools for Windows, macOS, and Linux",
@@ -160,3 +163,111 @@ struct ImageCommand: ParsableCommand {
         pathBox.printFooter()
     }
 }
+
+// MARK: - Mount Command (Windows only)
+
+#if os(Windows)
+struct MountCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "mount",
+        abstract: "Mount a SquashFS image as a virtual directory"
+    )
+
+    @Argument(help: "Path to the SquashFS image file")
+    var imagePath: String
+
+    @Argument(help: "Directory to mount the image at")
+    var mountPoint: String
+
+    @Flag(name: .long, help: "Force mount by cleaning stale reparse points")
+    var force = false
+
+    func run() throws {
+        // Validate image exists
+        guard FileManager.default.fileExists(atPath: imagePath) else {
+            throw SquashboxError.notFound("Image file not found: \(imagePath)")
+        }
+
+        // Handle mount point
+        if FileManager.default.fileExists(atPath: mountPoint) && force {
+            print("  Cleaning stale mount point... ", terminator: "")
+            try fixMountPoint(mountPoint)
+            print("done.")
+        } else if !FileManager.default.fileExists(atPath: mountPoint) {
+            try FileManager.default.createDirectory(atPath: mountPoint,
+                                                     withIntermediateDirectories: true)
+        }
+
+        // Open image
+        print("  Opening SquashFS image: \(imagePath)")
+        let source = try SquashFsSource(imagePath: imagePath)
+        let stats = try source.volumeStats()
+        print("  Image opened: \(stats.totalInodes) inodes, \(formatSize(stats.totalBytes))")
+
+        // Start ProjFS
+        print("  Starting ProjFS at: \(mountPoint)")
+        let driver = ProjFsDriver(provider: source, rootPath: mountPoint)
+        try driver.start()
+
+        print("✓ Mounted \(imagePath) at \(mountPoint)")
+        print("Press Ctrl+C to unmount...")
+
+        // Block until Ctrl+C — use RunLoop to avoid Swift 6.2.4 compiler crash
+        // with signal() + DispatchSemaphore in the SendNonSendable SIL pass.
+        // Note: RunLoop.run() blocks forever; cleanup happens via driver.deinit
+        // or via the `sqb umount` command.
+        RunLoop.current.run()
+    }
+}
+
+// MARK: - Umount Command (Windows only)
+
+struct UmountCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "umount",
+        abstract: "Clean up a stale ProjFS mount point"
+    )
+
+    @Argument(help: "Directory to clean up")
+    var mountPoint: String
+
+    func run() throws {
+        guard FileManager.default.fileExists(atPath: mountPoint) else {
+            throw SquashboxError.notFound("Directory not found: \(mountPoint)")
+        }
+        try fixMountPoint(mountPoint)
+    }
+}
+
+// MARK: - Shared Helpers
+
+/// Remove stale ProjFS reparse points from a directory.
+/// Matches the Rust `cmd_fix` function behavior.
+private func fixMountPoint(_ path: String) throws {
+    if !FileManager.default.fileExists(atPath: path) {
+        try FileManager.default.createDirectory(atPath: path,
+                                                 withIntermediateDirectories: true)
+        print("✓ Created clean mount directory: \(path)")
+        return
+    }
+
+    if !ProjFsDriver.hasReparsePoint(at: path) {
+        print("✓ Directory is already clean: \(path)")
+        return
+    }
+
+    print("Removing stale ProjFS reparse point from: \(path)")
+    do {
+        try ProjFsDriver.cleanupReparsePoint(at: path)
+        print("✓ Reparse point removed: \(path)")
+    } catch {
+        // Fall back to directory removal
+        fputs("Warning: reparse point removal failed: \(error)\n", stderr)
+        fputs("Falling back to directory cleanup...\n", stderr)
+        try FileManager.default.removeItem(atPath: path)
+        try FileManager.default.createDirectory(atPath: path,
+                                                 withIntermediateDirectories: true)
+        print("✓ Directory cleaned and ready for mounting: \(path)")
+    }
+}
+#endif

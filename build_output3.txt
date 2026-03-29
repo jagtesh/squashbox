@@ -1,0 +1,751 @@
+Swift version:
+Swift version 6.2.4 (swift-6.2.4-RELEASE)
+Target: x86_64-unknown-windows-msvc
+Build config: +assertions
+
+Building...
+[0/1] Planning build
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/50] Write sources
+[3/50] Compiling debug.c
+[4/50] Write sources
+[5/50] Compiling CZlib uncompr.c
+[5/50] Compiling CZlib compress.c
+[7/50] Compiling CZlib inffast.c
+[8/50] Compiling CZlib inftrees.c
+[9/50] Compiling CZlib crc32.c
+[10/50] Compiling CZlib infback.c
+[11/50] Compiling CZlib inflate.c
+[12/50] Compiling CZlib deflate.c
+[13/50] Compiling CZlib trees.c
+[14/50] Compiling CZlib zutil.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\common\fse_decompress.c:20:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\common\bitstream.h:32:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+1 error generated.
+
+[15/50] Compiling fse_decompress.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:14:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:19:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/fse.h:237:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\bitstream.h:32:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:28:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h"   /* ZSTD_CCtx, size_t */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:29:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_superblock.h:18:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   18 | #include "../zstd.h" /* ZSTD_CCtx */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress.c:6984:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\clevels.h:15:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   15 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_compress.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_ddict.c:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_ddict.c:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/fse.h:237:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common\bitstream.h:32:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_ddict.c:24:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress_internal.h:23:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_ddict.c:25:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_ddict.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h"     /* ZSTD_DDict, and several public functions */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_ddict.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress.c:59:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress.c:60:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress.c:61:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress.c:69:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_ddict.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h"     /* ZSTD_DDict, and several public functions */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress.c:70:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress_block.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h"    /* DCtx, and some public functions */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_decompress.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_fast.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_opt.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_opt.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_opt.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_opt.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_opt.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_sequences.c:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_sequences.h:15:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_sequences.c:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_sequences.h:15:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_compress_sequences.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.c:19:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.c:22:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/pool.h:21:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   21 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstdmt_compress.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\huf_decompress.c:20:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/bitstream.h:32:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\huf_decompress.c:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling huf_decompress.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.h:18:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.h:18:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.h:18:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.h:18:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.c:11:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_ldm.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h"   /* ZSTD_CCtx, size_t */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.c:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.h:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.c:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.h:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.c:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.h:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.c:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_literals.h:14:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_compress_literals.c
+[15/50] Compiling zstd_ldm.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_double_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_double_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_double_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_double_fast.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_double_fast.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_superblock.c:14:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_superblock.h:18:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   18 | #include "../zstd.h" /* ZSTD_CCtx */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_superblock.c:16:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_superblock.c:16:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_superblock.c:18:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_superblock.c:18:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_compress_superblock.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_lazy.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_lazy.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:21:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_lazy.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_cwksp.h:17:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\../common/allocations.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h" /* ZSTD_customMem */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_lazy.c:11:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstd_compress_internal.h:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\compress\zstdmt_compress.h:31:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   31 | #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_lazy.c
+[15/50] Write swift-version-17E5B5F0176EF40B.txt
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress_block.c:22:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/fse.h:237:
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common\bitstream.h:32:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common\error_private.h:24:10: error: '../zstd_errors.h' file not found, did you mean 'zstd_errors.h'?
+
+   24 | #include "../zstd_errors.h"  /* enum list */
+
+      |          ^~~~~~~~~~~~~~~~~~
+
+      |          "zstd_errors.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress_block.c:24:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\../common/zstd_internal.h:28:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   28 | #include "../zstd.h"
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress_block.c:26:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_ddict.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h"     /* ZSTD_DDict, and several public functions */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress_block.c:27:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CZstd\decompress\zstd_decompress_block.h:19:10: error: '../zstd.h' file not found, did you mean 'zstd.h'?
+
+   19 | #include "../zstd.h"    /* DCtx, and some public functions */
+
+      |          ^~~~~~~~~~~
+
+      |          "zstd.h"
+
+[15/50] Compiling zstd_decompress_block.c
+
+Exit code: 1

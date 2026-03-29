@@ -1,0 +1,483 @@
+Swift version:
+Swift version 6.2.4 (swift-6.2.4-RELEASE)
+Target: x86_64-unknown-windows-msvc
+Build config: +assertions
+
+Building...
+[0/1] Planning build
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/96] Write swift-version-17E5B5F0176EF40B.txt
+[3/92] Write sources
+[4/92] Compiling alone_encoder.c
+[4/92] Compiling auto_decoder.c
+[4/92] Compiling alone_decoder.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:14:3: error: Never include this file directly. Use <lzma.h> instead.
+
+   14 | #       error Never include this file directly. Use <lzma.h> instead.
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:26:2: error: redefinition of enumerator 'LZMA_CHECK_NONE'
+
+   26 |         LZMA_CHECK_NONE     = 0,
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   14 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:26:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   26 |         LZMA_CHECK_NONE     = 0,
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:33:2: error: redefinition of enumerator 'LZMA_CHECK_CRC32'
+
+   33 |         LZMA_CHECK_CRC32    = 1,
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   14 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:33:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   33 |         LZMA_CHECK_CRC32    = 1,
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:40:2: error: redefinition of enumerator 'LZMA_CHECK_CRC64'
+
+   40 |         LZMA_CHECK_CRC64    = 4,
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   14 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:40:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   40 |         LZMA_CHECK_CRC64    = 4,
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:47:2: error: redefinition of enumerator 'LZMA_CHECK_SHA256'
+
+   47 |         LZMA_CHECK_SHA256   = 10
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   14 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:47:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   47 |         LZMA_CHECK_SHA256   = 10
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:53:3: error: typedef redefinition with different types ('enum lzma_check' vs 'enum lzma_check')
+
+   53 | } lzma_check;
+
+      |   ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:14:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   14 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:53:3: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   53 | } lzma_check;
+
+      |   ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:49:2: error: unknown type name 'lzma_check_state'
+
+   49 |         lzma_check_state check;
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:129:4: error: call to undeclared function 'lzma_check_update'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+  129 |                         lzma_check_update(&coder->check, coder->block->check,
+
+      |                         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:129:4: note: did you mean 'lzma_check_size'?
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:101:27: note: 'lzma_check_size' declared here
+
+  101 | extern LZMA_API(uint32_t) lzma_check_size(lzma_check check)
+
+      |                           ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:173:4: error: call to undeclared function 'lzma_check_finish'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+  173 |                         lzma_check_finish(&coder->check, coder->block->check);
+
+      |                         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:173:4: note: did you mean 'lzma_check_size'?
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:101:27: note: 'lzma_check_size' declared here
+
+  101 | extern LZMA_API(uint32_t) lzma_check_size(lzma_check check)
+
+      |                           ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:268:2: error: call to undeclared function 'lzma_check_init'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+  268 |         lzma_check_init(&coder->check, block->check);
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_decoder.c:268:2: note: did you mean 'lzma_check_size'?
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:101:27: note: 'lzma_check_size' declared here
+
+  101 | extern LZMA_API(uint32_t) lzma_check_size(lzma_check check)
+
+      |                           ^
+
+10 errors generated.
+
+[7/92] Compiling block_decoder.c
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\check\crc32_small.c:15:10: error: redefinition of 'lzma_crc32_table' with a different type: 'uint32_t[1][256]' (aka 'unsigned int[1][256]') vs 'const uint32_t[8][256]' (aka 'const unsigned int[8][256]')
+
+   15 | uint32_t lzma_crc32_table[1][256];
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\check\check.h:109:23: note: previous declaration is here
+
+  109 | extern const uint32_t lzma_crc32_table[8][256];
+
+      |                       ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\check\crc32_small.c:35:26: error: cannot assign to variable 'lzma_crc32_table' with const-qualified type 'const uint32_t[8][256]' (aka 'const unsigned int[8][256]')
+
+   35 |                 lzma_crc32_table[0][b] = r;
+
+      |                 ~~~~~~~~~~~~~~~~~~~~~~ ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\check\check.h:109:23: note: variable 'lzma_crc32_table' declared const here
+
+  109 | extern const uint32_t lzma_crc32_table[8][256];
+
+      | ~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\check\crc32_small.c:46:2: error: call to undeclared function 'mythread_once'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+   46 |         mythread_once(crc32_init);
+
+      |         ^
+
+3 errors generated.
+
+[7/92] Compiling crc32_small.c
+[7/92] Compiling stream_buffer_encoder.c
+[7/92] Compiling simple_decoder.c
+[7/92] Compiling crc64_fast.c
+[7/92] Compiling x86.c
+[7/92] Compiling sparc.c
+[7/92] Compiling crc32_fast.c
+[7/92] Compiling simple_encoder.c
+[7/92] Compiling sha256.c
+[7/92] Compiling easy_encoder.c
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\check\crc64_small.c:46:2: error: call to undeclared function 'mythread_once'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+   46 |         mythread_once(crc64_init);
+
+      |         ^
+
+[7/92] Compiling crc64_small.c
+[7/92] Compiling easy_encoder_memusage.c
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:14:3: error: Never include this file directly. Use <lzma.h> instead.
+
+   14 | #       error Never include this file directly. Use <lzma.h> instead.
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:26:2: error: redefinition of enumerator 'LZMA_CHECK_NONE'
+
+   26 |         LZMA_CHECK_NONE     = 0,
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   16 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:26:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   26 |         LZMA_CHECK_NONE     = 0,
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:33:2: error: redefinition of enumerator 'LZMA_CHECK_CRC32'
+
+   33 |         LZMA_CHECK_CRC32    = 1,
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   16 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:33:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   33 |         LZMA_CHECK_CRC32    = 1,
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:40:2: error: redefinition of enumerator 'LZMA_CHECK_CRC64'
+
+   40 |         LZMA_CHECK_CRC64    = 4,
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   16 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:40:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   40 |         LZMA_CHECK_CRC64    = 4,
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:47:2: error: redefinition of enumerator 'LZMA_CHECK_SHA256'
+
+   47 |         LZMA_CHECK_SHA256   = 10
+
+      |         ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   16 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:47:2: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   47 |         LZMA_CHECK_SHA256   = 10
+
+      |         ^
+
+In file included from C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:53:3: error: typedef redefinition with different types ('enum lzma_check' vs 'enum lzma_check')
+
+   53 | } lzma_check;
+
+      |   ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\lzma.h:297:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+  297 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:16:10: note: 'C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h' included multiple times, additional include site here
+
+   16 | #include "check.h"
+
+      |          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:53:3: note: unguarded header; consider using #ifdef guards or #pragma once
+
+   53 | } lzma_check;
+
+      |   ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:303:3: error: use of undeclared identifier 'lzma_check_state'; did you mean 'lzma_check_size'?
+
+  303 |                 lzma_check_state check;
+
+      |                 ^~~~~~~~~~~~~~~~
+
+      |                 lzma_check_size
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:101:27: note: 'lzma_check_size' declared here
+
+  101 | extern LZMA_API(uint32_t) lzma_check_size(lzma_check check)
+
+      |                           ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:303:19: error: expected ';' after expression
+
+  303 |                 lzma_check_state check;
+
+      |                                 ^
+
+      |                                 ;
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:303:20: error: use of undeclared identifier 'check'
+
+  303 |                 lzma_check_state check;
+
+      |                                  ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:304:3: error: call to undeclared function 'lzma_check_init'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+  304 |                 lzma_check_init(&check, block->check);
+
+      |                 ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:304:3: note: did you mean 'lzma_check_size'?
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\include\check.h:101:27: note: 'lzma_check_size' declared here
+
+  101 | extern LZMA_API(uint32_t) lzma_check_size(lzma_check check)
+
+      |                           ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:304:20: error: use of undeclared identifier 'check'
+
+  304 |                 lzma_check_init(&check, block->check);
+
+      |                                  ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:305:3: error: call to undeclared function 'lzma_check_update'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+  305 |                 lzma_check_update(&check, block->check, in, in_size);
+
+      |                 ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:305:22: error: use of undeclared identifier 'check'
+
+  305 |                 lzma_check_update(&check, block->check, in, in_size);
+
+      |                                    ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:306:3: error: call to undeclared function 'lzma_check_finish'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+
+  306 |                 lzma_check_finish(&check, block->check);
+
+      |                 ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:306:22: error: use of undeclared identifier 'check'
+
+  306 |                 lzma_check_finish(&check, block->check);
+
+      |                                    ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:308:28: error: use of undeclared identifier 'check'
+
+  308 |                 memcpy(block->raw_check, check.buffer.u8, check_size);
+
+      |                                          ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:309:26: error: use of undeclared identifier 'check'
+
+  309 |                 memcpy(out + *out_pos, check.buffer.u8, check_size);
+
+      |                                        ^
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\CLzma\common\block_buffer_encoder.c:303:3: warning: expression result unused [-Wunused-value]
+
+  303 |                 lzma_check_state check;
+
+      |                 ^~~~~~~~~~~~~~~~
+
+[7/92] Compiling block_buffer_encoder.c
+[7/92] Compiling stream_buffer_decoder.c
+[7/92] Compiling crc32_table.c
+
+Exit code: 1

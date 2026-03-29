@@ -1,0 +1,219 @@
+Swift version:
+Swift version 6.2.4 (swift-6.2.4-RELEASE)
+Target: x86_64-unknown-windows-msvc
+Build config: +assertions
+
+Building...
+[0/1] Planning build
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/7] Write sources
+[3/13] Write swift-version-17E5B5F0176EF40B.txt
+[5/28] Compiling ProjFsDriver ProjFsDriver.swift
+[6/28] Emitting module ProjFsDriver
+[7/29] Wrapping AST for ProjFsDriver for debugging
+[9/29] Compiling SwiftSquashFS BinaryReader.swift
+[10/29] Emitting module SwiftSquashFS
+[11/29] Compiling SwiftSquashFS BinaryWriter.swift
+[12/29] Compiling SwiftSquashFS Compressor.swift
+[13/29] Compiling SwiftSquashFS DirectoryTable.swift
+[14/29] Compiling SwiftSquashFS ZstdCompressor.swift
+[15/29] Compiling SwiftSquashFS Inode.swift
+[16/29] Compiling SwiftSquashFS Superblock.swift
+[17/29] Compiling SwiftSquashFS FileDataReader.swift
+[18/29] Compiling SwiftSquashFS Flags.swift
+[19/29] Compiling SwiftSquashFS FragmentTable.swift
+[20/29] Compiling SwiftSquashFS IdTable.swift
+[21/29] Compiling SwiftSquashFS MetadataBlock.swift
+[22/29] Compiling SwiftSquashFS DataBlock.swift
+[23/29] Compiling SwiftSquashFS GzipCompressor.swift
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\SwiftSquashFS\Compression\GzipCompressor.swift:29:21: error: cannot convert value of type 'UInt' to expected argument type 'uLong' (aka 'UInt32')
+
+27 |                     &outputSize,
+
+28 |                     srcBase.assumingMemoryBound(to: UInt8.self),
+
+29 |                     UInt(srcPtr.count)
+
+   |                     `- error: cannot convert value of type 'UInt' to expected argument type 'uLong' (aka 'UInt32')
+
+30 |                 )
+
+31 |             }
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\SwiftSquashFS\Compression\GzipCompressor.swift:27:21: error: cannot convert value of type 'UnsafeMutablePointer<UInt>' to expected argument type 'UnsafeMutablePointer<uLongf>' (aka 'UnsafeMutablePointer<UInt32>')
+
+25 |                 return uncompress(
+
+26 |                     dstPtr.baseAddress!,
+
+27 |                     &outputSize,
+
+   |                     |- error: cannot convert value of type 'UnsafeMutablePointer<UInt>' to expected argument type 'UnsafeMutablePointer<uLongf>' (aka 'UnsafeMutablePointer<UInt32>')
+
+   |                     `- note: arguments to generic parameter 'Pointee' ('UInt' and 'uLongf' (aka 'UInt32')) are expected to be equal
+
+28 |                     srcBase.assumingMemoryBound(to: UInt8.self),
+
+29 |                     UInt(srcPtr.count)
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\SwiftSquashFS\Compression\GzipCompressor.swift:47:39: error: cannot convert value of type 'UInt' to expected argument type 'uLong' (aka 'UInt32')
+
+45 |             }
+
+46 | 
+
+47 |             let bound = compressBound(UInt(srcPtr.count))
+
+   |                                       `- error: cannot convert value of type 'UInt' to expected argument type 'uLong' (aka 'UInt32')
+
+48 |             var outputSize = bound
+
+49 |             var output = [UInt8](repeating: 0, count: Int(bound))
+
+[24/29] Compiling SwiftSquashFS SquashFsReader.swift
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\SwiftSquashFS\Reader\SquashFsReader.swift:133:50: error: no exact matches in call to subscript 
+
+131 |         }
+
+132 | 
+
+133 |         let reader = BinaryReader(data: inodeData[inodeData.startIndex + absoluteOffset...])
+
+    |                                                  |- error: no exact matches in call to subscript 
+
+    |                                                  `- note: found candidate with type '(Data.Index) -> UInt8' (aka '(Int) -> UInt8')
+
+134 |         return try parseInode(
+
+135 |             from: reader,
+
+
+
+FoundationEssentials.Data.subscript:2:19: note: candidate expects value of type 'Range<Data.Index>' (aka 'Range<Int>') for parameter #1 (got 'Int')
+
+1 | struct Data {
+
+2 | @inlinable public subscript(bounds: Range<Data.Index>) -> Data { get set }}
+
+  |                   `- note: candidate expects value of type 'Range<Data.Index>' (aka 'Range<Int>') for parameter #1 (got 'Int')
+
+3 | 
+
+
+
+Swift.Collection.subscript:2:19: note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+1 | protocol Collection {
+
+2 | @inlinable public subscript(x: (UnboundedRange_) -> ()) -> Self.SubSequence { get }}
+
+  |                   `- note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+3 | 
+
+
+
+Swift.MutableCollection.subscript:2:19: note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+1 | protocol MutableCollection {
+
+2 | @inlinable public subscript(x: (UnboundedRange_) -> ()) -> Self.SubSequence { get set }}
+
+  |                   `- note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+3 | 
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\SwiftSquashFS\Reader\SquashFsReader.swift:133:88: error: cannot convert value of type 'PartialRangeFrom<Int>' to expected argument type 'Int'
+
+131 |         }
+
+132 | 
+
+133 |         let reader = BinaryReader(data: inodeData[inodeData.startIndex + absoluteOffset...])
+
+    |                                                                                        `- error: cannot convert value of type 'PartialRangeFrom<Int>' to expected argument type 'Int'
+
+134 |         return try parseInode(
+
+135 |             from: reader,
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\SwiftSquashFS\Reader\SquashFsReader.swift:158:88: error: cannot convert value of type 'PartialRangeFrom<Int>' to expected argument type 'Int'
+
+156 |         }
+
+157 | 
+
+158 |         let reader = BinaryReader(data: inodeData[inodeData.startIndex + absoluteOffset...])
+
+    |                                                                                        `- error: cannot convert value of type 'PartialRangeFrom<Int>' to expected argument type 'Int'
+
+159 |         return try parseInode(
+
+160 |             from: reader,
+
+
+
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\SwiftSquashFS\Reader\SquashFsReader.swift:158:50: error: no exact matches in call to subscript 
+
+156 |         }
+
+157 | 
+
+158 |         let reader = BinaryReader(data: inodeData[inodeData.startIndex + absoluteOffset...])
+
+    |                                                  |- error: no exact matches in call to subscript 
+
+    |                                                  `- note: found candidate with type '(Data.Index) -> UInt8' (aka '(Int) -> UInt8')
+
+159 |         return try parseInode(
+
+160 |             from: reader,
+
+
+
+FoundationEssentials.Data.subscript:2:19: note: candidate expects value of type 'Range<Data.Index>' (aka 'Range<Int>') for parameter #1 (got 'Int')
+
+1 | struct Data {
+
+2 | @inlinable public subscript(bounds: Range<Data.Index>) -> Data { get set }}
+
+  |                   `- note: candidate expects value of type 'Range<Data.Index>' (aka 'Range<Int>') for parameter #1 (got 'Int')
+
+3 | 
+
+
+
+Swift.Collection.subscript:2:19: note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+1 | protocol Collection {
+
+2 | @inlinable public subscript(x: (UnboundedRange_) -> ()) -> Self.SubSequence { get }}
+
+  |                   `- note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+3 | 
+
+
+
+Swift.MutableCollection.subscript:2:19: note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+1 | protocol MutableCollection {
+
+2 | @inlinable public subscript(x: (UnboundedRange_) -> ()) -> Self.SubSequence { get set }}
+
+  |                   `- note: candidate expects value of type '(UnboundedRange_) -> ()' for parameter #1 (got 'Int')
+
+3 | 
+
+
+Exit code: 1

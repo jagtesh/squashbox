@@ -1,0 +1,22 @@
+Swift version:
+Swift version 6.2.4 (swift-6.2.4-RELEASE)
+Target: x86_64-unknown-windows-msvc
+Build config: +assertions
+
+Building...
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/6] Write sources
+[3/6] Write swift-version-17E5B5F0176EF40B.txt
+[5/8] Compiling ProjFsDriver ProjFsDriver.swift
+[6/8] Emitting module ProjFsDriver
+[7/9] Wrapping AST for ProjFsDriver for debugging
+[9/13] Emitting module sqb
+[10/13] Compiling sqb Sqb.swift
+[11/13] Write Objects.LinkFileList
+[12/13] Linking sqb.exe
+Build complete! (6.22s)
+warning: unable to create symbolic link at C:\Users\Macan User\code\jagtesh\squashbox\.build\debug: Error Domain=NSCocoaErrorDomain Code=512 "(null)"UserInfo={NSURL=file:///C:/Users/Macan%20User/code/jagtesh/squashbox/.build/debug, NSUnderlyingError=Win32Error(code: 1314), NSFilePath=C:\Users\Macan User\code\jagtesh\squashbox\.build\debug}
+
+Exit code: 0

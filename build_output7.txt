@@ -1,0 +1,111 @@
+Swift version:
+Swift version 6.2.4 (swift-6.2.4-RELEASE)
+Target: x86_64-unknown-windows-msvc
+Build config: +assertions
+
+Building...
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/13] Write sources
+[3/13] Write swift-version-17E5B5F0176EF40B.txt
+[5/9] Emitting module sqb
+error: compile command failed due to exception 3 (use -v to see invocation)
+C:\Users\Macan User\code\jagtesh\squashbox\Sources\sqb\Sqb.swift:217:9: warning: 'nonisolated(unsafe)' is unnecessary for a constant with 'Sendable' type 'DispatchSemaphore', consider removing it
+
+215 |         // Wait for Ctrl+C ΓÇö use nonisolated(unsafe) to avoid Swift 6.2.4
+
+216 |         // compiler crash in the SendNonSendable SIL pass (SR-xxxxx).
+
+217 |         nonisolated(unsafe) let sem = DispatchSemaphore(value: 0)
+
+    |         `- warning: 'nonisolated(unsafe)' is unnecessary for a constant with 'Sendable' type 'DispatchSemaphore', consider removing it
+
+218 |         signal(SIGINT) { _ in
+
+219 |             sem.signal()
+
+
+
+Assertion failed: p.isTrackingElement(op.getOpArg1()) && "Require PartitionOp's argument should already be tracked", file C:\Users\swift-ci\jenkins\workspace\swift-6.2-windows-toolchain\swift\include\swift/SILOptimizer/Utils/PartitionUtils.h, line 1522
+
+Please submit a bug report (https://swift.org/contributing/#reporting-bugs) and include the crash backtrace.
+
+Stack dump:
+
+0.	Program arguments: "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Toolchains\\6.2.4+Asserts\\usr\\bin\\swift-frontend.exe" -frontend -c -primary-file "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\Sources\\sqb\\Sqb.swift" -emit-dependencies-path "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\sqb.build\\Sqb.d" -emit-reference-dependencies-path "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\sqb.build\\Sqb.swiftdeps" -serialize-diagnostics-path "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\sqb.build\\Sqb.dia" -target x86_64-unknown-windows-msvc -disable-objc-interop -sdk "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Platforms\\6.2.4\\Windows.platform\\Developer\\SDKs\\Windows.sdk" -I "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\Modules" -I "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Platforms\\6.2.4\\Windows.platform\\Developer\\Library\\XCTest-6.2.4\\usr\\lib\\swift\\windows" -I "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Platforms\\6.2.4\\Windows.platform\\Developer\\Library\\XCTest-6.2.4\\usr\\lib\\swift\\windows\\x86_64" -I "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Platforms\\6.2.4\\Windows.platform\\Developer\\Library\\Testing-6.2.4\\usr\\lib\\swift\\windows" -no-color-diagnostics -Xcc -fno-color-diagnostics -enable-testing -g -debug-info-format=dwarf -dwarf-version=4 -module-cache-path "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\ModuleCache" -static -swift-version 6 -Onone -D SWIFT_PACKAGE -D DEBUG -D SWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -entry-point-function-name sqb_main -empty-abi-descriptor -enable-anonymous-context-mangled-names -file-compilation-dir "C:\\Users\\Macan User\\code\\jagtesh\\squashbox" -Xcc "-fmodule-map-file=C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\CZstd.build\\module.modulemap" -Xcc -I -Xcc "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\Sources\\CZstd\\include" -Xcc "-fmodule-map-file=C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\CZlib.build\\module.modulemap" -Xcc -I -Xcc "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\Sources\\CZlib\\include" -Xcc "-fmodule-map-file=C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\Sources\\Drivers\\Windows\\CProjFS\\include\\module.modulemap" -Xcc -I -Xcc "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\Sources\\Drivers\\Windows\\CProjFS\\include" -Xcc -D_MT -Xcc -D_DLL -Xcc -Xclang -Xcc --dependent-lib=msvcrt -Xcc -gdwarf -no-auto-bridging-header-chaining -module-name sqb -package-name squashbox -in-process-plugin-server-path "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Toolchains\\6.2.4+Asserts\\usr\\bin\\SwiftInProcPluginServer.dll" -plugin-path "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Toolchains\\6.2.4+Asserts\\usr\\bin" -plugin-path "C:\\Users\\Macan User\\AppData\\Local\\Programs\\Swift\\Toolchains\\6.2.4+Asserts\\usr\\local\\bin" -autolink-library oldnames -autolink-library msvcrt -Xcc -D_MT -Xcc -D_DLL -parse-as-library -o "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\sqb.build\\Sqb.swift.o" -index-store-path "C:\\Users\\Macan User\\code\\jagtesh\\squashbox\\.build\\x86_64-unknown-windows-msvc\\debug\\index\\store" -index-system-modules
+
+1.	Swift version 6.2.4 (swift-6.2.4-RELEASE)
+
+2.	Compiling with the current language version
+
+3.	While evaluating request ExecuteSILPipelineRequest(Run pipelines { Mandatory Diagnostic Passes + Enabling Optimization Passes } on SIL for sqb)
+
+4.	While running pass #1964 SILFunctionTransform "SendNonSendable" on SILFunction "@$s3sqb12MountCommandV3runyyKF".
+
+ for 'run()' (at C:\Users\Macan User\code\jagtesh\squashbox\Sources\sqb\Sqb.swift:185:5)
+
+Exception Code: 0x80000003
+
+ #0 0x00007ff7ac09f925 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x6e5f925)
+
+ #1 0x00007ff975681989 (C:\windows\System32\ucrtbase.dll+0xc1989)
+
+ #2 0x00007ff975664ab1 (C:\windows\System32\ucrtbase.dll+0xa4ab1)
+
+ #3 0x00007ff975682986 (C:\windows\System32\ucrtbase.dll+0xc2986)
+
+ #4 0x00007ff975682b61 (C:\windows\System32\ucrtbase.dll+0xc2b61)
+
+ #5 0x00007ff7a61a7c6a (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xf67c6a)
+
+ #6 0x00007ff7a61b320d (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xf7320d)
+
+ #7 0x00007ff7a61b3d30 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xf73d30)
+
+ #8 0x00007ff7a619e30c (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xf5e30c)
+
+ #9 0x00007ff7a61b08d1 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xf708d1)
+
+#10 0x00007ff7a64156a9 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x11d56a9)
+
+#11 0x00007ff7a60b5f6d (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xe75f6d)
+
+#12 0x00007ff7a60b5167 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xe75167)
+
+#13 0x00007ff7a60b2c07 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xe72c07)
+
+#14 0x00007ff7a60b2ee6 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xe72ee6)
+
+#15 0x00007ff7a60b28f7 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xe728f7)
+
+#16 0x00007ff7a610fbcd (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xecfbcd)
+
+#17 0x00007ff7a60b307f (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xe7307f)
+
+#18 0x00007ff7a60a0529 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0xe60529)
+
+#19 0x00007ff7a5a77f24 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x837f24)
+
+#20 0x00007ff7a57d374d (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x59374d)
+
+#21 0x00007ff7a57d422f (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x59422f)
+
+#22 0x00007ff7a57d2f94 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x592f94)
+
+#23 0x00007ff7a57d344b (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x59344b)
+
+#24 0x00007ff7a57d53b2 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x5953b2)
+
+#25 0x00007ff7a561c620 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x3dc620)
+
+#26 0x00007ff7a561c1b7 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x3dc1b7)
+
+#27 0x00007ff7ac0ff408 (C:\Users\Macan User\AppData\Local\Programs\Swift\Toolchains\6.2.4+Asserts\usr\bin\swift-frontend.exe+0x6ebf408)
+
+#28 0x00007ff9768ae8d7 (C:\windows\System32\KERNEL32.DLL+0x2e8d7)
+
+#29 0x00007ff977eac48c (C:\windows\SYSTEM32\ntdll.dll+0x8c48c)
+
+
+Exit code: 1

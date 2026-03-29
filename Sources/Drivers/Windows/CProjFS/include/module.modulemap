@@ -1,0 +1,4 @@
+module CProjFS {
+    umbrella header "CProjFS.h"
+    export *
+}
