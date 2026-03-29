@@ -1,0 +1,29 @@
+[package]
+name = "squashbox-macos"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "macOS FSKit driver for Squashbox"
+
+[[bin]]
+name = "sqb"
+path = "src/main.rs"
+
+[lib]
+name = "squashbox_macos"
+path = "src/lib.rs"
+# staticlib for linking into the FSKit appex
+crate-type = ["lib", "staticlib"]
+
+[dependencies]
+squashbox-core = { path = "../squashbox-core" }
+macos-fskit = { path = "../macos-fskit" }
+anyhow = { workspace = true }
+clap = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+libc = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

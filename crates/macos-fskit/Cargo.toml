@@ -1,0 +1,18 @@
+[package]
+name = "macos-fskit"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Rust bindings for Apple's FSKit framework (macOS filesystem extensions)"
+
+[lib]
+name = "macos_fskit"
+
+[dependencies]
+objc2 = { workspace = true }
+objc2-foundation = { workspace = true }
+block2 = { workspace = true }
+libc = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }

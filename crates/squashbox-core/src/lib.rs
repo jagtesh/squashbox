@@ -5,6 +5,8 @@
 //! implementation. Both the Windows (ProjFS) and macOS (FSKit/UniFFI) drivers
 //! call into this crate.
 
+pub mod cli;
+pub mod fmt;
 pub mod provider;
 pub mod squashfs;
 pub mod types;
