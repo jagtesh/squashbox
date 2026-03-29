@@ -1,0 +1,26 @@
+[package]
+name = "squashbox-uniffi"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "UniFFI bindings for squashbox-core — exposes SquashFS provider to Swift"
+
+[lib]
+name = "squashbox_uniffi"
+crate-type = ["staticlib", "cdylib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bindgen.rs"
+
+[features]
+default = ["zstd", "xz", "gzip"]
+zstd = ["squashbox-core/zstd"]
+xz = ["squashbox-core/xz"]
+gzip = ["squashbox-core/gzip"]
+
+[dependencies]
+squashbox-core = { path = "../squashbox-core" }
+uniffi = { workspace = true }
+thiserror = { workspace = true }
