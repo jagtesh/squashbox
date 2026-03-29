@@ -1,4 +1,0 @@
-module CSquashFS {
-    umbrella header "CSquashFS.h"
-    export *
-}

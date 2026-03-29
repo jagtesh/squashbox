@@ -77,14 +77,7 @@ struct ImageCommand: ParsableCommand {
         print()
 
         // ── Root Entries ──
-        var allEntries: [DirEntry] = []
-        var cookie: UInt64 = 0
-        repeat {
-            let batch = try source.listDirectory(rootInode, cookie: cookie)
-            allEntries.append(contentsOf: batch.entries)
-            if batch.isEmpty { break }
-            cookie = batch.cookie
-        } while true
+        let allEntries = try source.allEntries(rootInode)
 
         let entryBox = TextBox(title: "Root Entries (\(allEntries.count))")
         entryBox.printHeader()
@@ -113,16 +106,11 @@ struct ImageCommand: ParsableCommand {
             totalTwoLevels += 1
 
             if entry.entryType == .directory {
-                var subCookie: UInt64 = 0
-                repeat {
-                    let batch = try source.listDirectory(entry.inode, cookie: subCookie)
-                    for child in batch.entries {
-                        typeCounts[child.entryType, default: 0] += 1
-                        totalTwoLevels += 1
-                    }
-                    if batch.isEmpty { break }
-                    subCookie = batch.cookie
-                } while true
+                let children = try source.allEntries(entry.inode)
+                for child in children {
+                    typeCounts[child.entryType, default: 0] += 1
+                    totalTwoLevels += 1
+                }
             }
         }
 
@@ -144,14 +132,7 @@ struct ImageCommand: ParsableCommand {
             if let inode = try source.resolvePath(pathStr) {
                 let attrs = try source.getAttributes(inode)
                 if attrs.isDirectory {
-                    var count = 0
-                    var subCookie: UInt64 = 0
-                    repeat {
-                        let batch = try source.listDirectory(inode, cookie: subCookie)
-                        count += batch.entries.count
-                        if batch.isEmpty { break }
-                        subCookie = batch.cookie
-                    } while true
+                    let count = try source.allEntries(inode).count
                     pathBox.printContent("/\(pathStr.padding(toLength: 20, withPad: " ", startingAt: 0)) 📁 \(count) entries")
                 } else {
                     pathBox.printContent("/\(pathStr.padding(toLength: 20, withPad: " ", startingAt: 0)) 📄 \(formatSize(attrs.size))")

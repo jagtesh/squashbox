@@ -61,6 +61,21 @@ public protocol VirtualFsProvider: Sendable {
 /// Default implementations for optional protocol methods.
 /// Sources that don't support xattrs or access checks get reasonable defaults.
 extension VirtualFsProvider {
+    /// Collect all directory entries for an inode, handling pagination.
+    ///
+    /// The Rust `list_directory` returns `cookie = 0` to signal "no more entries".
+    /// This helper drains all pages into a single array.
+    public func allEntries(_ inode: InodeId) throws -> [DirEntry] {
+        var result: [DirEntry] = []
+        var cookie: UInt64 = 0
+        repeat {
+            let batch = try listDirectory(inode, cookie: cookie)
+            result.append(contentsOf: batch.entries)
+            cookie = batch.cookie
+        } while cookie != 0
+        return result
+    }
+
     public func listXattrs(_ inode: InodeId) throws -> [String] {
         return []
     }

@@ -1,0 +1,5 @@
+module squashbox_uniffiFFI {
+    header "squashbox_uniffiFFI.h"
+    link "squashbox_uniffi"
+    export *
+}

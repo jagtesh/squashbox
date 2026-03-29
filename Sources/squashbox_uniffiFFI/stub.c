@@ -1,0 +1,1 @@
+// Stub for CSquashboxFFI — actual code is in the Rust static library.

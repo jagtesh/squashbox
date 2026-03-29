@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/squashbox-core",
+    "crates/squashbox-uniffi",
     "crates/squashbox-windows",
 ]
 exclude = ["crates/backhand"]
@@ -16,6 +17,7 @@ license = "MIT"
 # Core
 backhand = { version = "0.25", default-features = false }
 thiserror = "2"
+uniffi = { version = "0.29", features = ["cli"] }
 
 # Windows
 windows-projfs = "0.1.7"

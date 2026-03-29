@@ -1,112 +1,21 @@
 import Foundation
 import SquashboxCore
-import SwiftSquashFS
+import SquashboxUniFFI
 
 /// A SquashFS-backed implementation of `VirtualFsProvider`.
 ///
-/// Uses SwiftSquashFS (pure Swift) for all SquashFS parsing.
-/// BSD-3-Clause licensed — no LGPL dependencies.
+/// Uses backhand (Rust) via UniFFI-generated bindings for all SquashFS parsing.
+/// The Rust side handles compression (gzip, xz, zstd, lz4, lzo) natively.
+///
+/// UniFFI types live in the `SquashboxUniFFI` module. SquashboxCore types
+/// are used via their fully qualified names where collisions exist.
 public final class SquashFsSource: @unchecked Sendable {
-    /// The built inode index (immutable after init).
-    private let index: InodeIndex
+    /// The UniFFI-generated Rust provider (thread-safe, Arc'd internally).
+    private let provider: SquashboxUniFFI.SquashFsProvider
 
-    /// The SwiftSquashFS reader (owns the image data).
-    private let reader: SquashFsReader
-
-    /// Mapping from our InodeIndex IDs → parsed inodes (for data reads).
-    private let inodeRefs: [InodeId: ParsedInode]
-
-    /// Open a SquashFS image and build the inode index.
+    /// Open a SquashFS image at the given path.
     public init(imagePath: String) throws {
-        // 1. Open image via SwiftSquashFS reader
-        let reader = try SquashFsReader(imagePath: imagePath)
-        self.reader = reader
-
-        // 2. Build InodeIndex by walking the tree
-        // We track a mapping from parentPath → InodeId so we can resolve
-        // the flat (parentPath, node) visitor pattern into parent InodeIds.
-        var builder = InodeIndex.Builder()
-        var refs: [InodeId: ParsedInode] = [:]
-        var pathToInodeId: [String: InodeId] = [:]
-
-        try reader.walkTree { parentPath, node in
-            if parentPath == "/" && node.name.isEmpty {
-                // Root node
-                let rootId = builder.insertRoot(attributes: EntryAttributes(
-                    inode: 0,
-                    entryType: .directory,
-                    size: 0,
-                    mode: UInt32(node.inode.header.permissions),
-                    uid: node.uid,
-                    gid: node.gid,
-                    mtimeSecs: node.inode.header.modifiedTime,
-                    nlink: node.inode.linkCount
-                ))
-                refs[rootId] = node.inode
-                pathToInodeId["/"] = rootId
-                return
-            }
-
-            // Look up the parent InodeId from the path map
-            guard let parentInodeId = pathToInodeId[parentPath] else {
-                throw SquashboxError.notFound("parent path '\(parentPath)' not resolved")
-            }
-
-            let entryType = Self.entryTypeFromInode(node.inode)
-            let safeName = FilenameMapping.toPlatformSafe(node.name)
-
-            var symlinkTarget: String? = nil
-            if entryType == .symlink {
-                symlinkTarget = node.inode.symlinkTarget
-            }
-
-            let childId = builder.insertEntry(
-                parent: parentInodeId,
-                name: safeName,
-                attributes: EntryAttributes(
-                    inode: 0,
-                    entryType: entryType,
-                    size: node.inode.fileSize,
-                    mode: UInt32(node.inode.header.permissions),
-                    uid: node.uid,
-                    gid: node.gid,
-                    mtimeSecs: node.inode.header.modifiedTime,
-                    nlink: node.inode.linkCount
-                ),
-                symlinkTarget: symlinkTarget
-            )
-            refs[childId] = node.inode
-
-            // Track this node's path for its children
-            if entryType == .directory {
-                let childPath = parentPath == "/"
-                    ? "/\(safeName)"
-                    : "\(parentPath)/\(safeName)"
-                pathToInodeId[childPath] = childId
-            }
-        }
-
-        self.index = builder.build()
-        self.inodeRefs = refs
-    }
-
-    private static func entryTypeFromInode(_ inode: ParsedInode) -> EntryType {
-        switch inode.header.type {
-        case .basicDirectory, .extendedDirectory:
-            return .directory
-        case .basicFile, .extendedFile:
-            return .file
-        case .basicSymlink, .extendedSymlink:
-            return .symlink
-        case .basicBlockDevice, .extendedBlockDevice:
-            return .blockDevice
-        case .basicCharDevice, .extendedCharDevice:
-            return .charDevice
-        case .basicFifo, .extendedFifo:
-            return .fifo
-        case .basicSocket, .extendedSocket:
-            return .socket
-        }
+        self.provider = try SquashboxUniFFI.SquashFsProvider(imagePath: imagePath)
     }
 }
 
@@ -114,53 +23,125 @@ public final class SquashFsSource: @unchecked Sendable {
 
 extension SquashFsSource: VirtualFsProvider {
     public func resolvePath(_ path: String) throws -> InodeId? {
-        try index.resolvePath(path)
+        do {
+            return try provider.resolvePath(path: path)
+        } catch let error as SquashboxUniFFI.CoreError {
+            throw mapCoreError(error)
+        }
     }
 
-    public func getAttributes(_ inode: InodeId) throws -> EntryAttributes {
-        let entry = try index.get(inode)
-        return entry.attributes
+    public func getAttributes(_ inode: InodeId) throws -> SquashboxCore.EntryAttributes {
+        do {
+            let attrs = try provider.getAttributes(inode: inode)
+            return SquashboxCore.EntryAttributes(
+                inode: attrs.inode,
+                entryType: mapEntryType(attrs.entryType),
+                size: attrs.size,
+                mode: attrs.mode,
+                uid: attrs.uid,
+                gid: attrs.gid,
+                mtimeSecs: UInt32(truncatingIfNeeded: attrs.mtimeSecs),
+                nlink: attrs.nlink
+            )
+        } catch let error as SquashboxUniFFI.CoreError {
+            throw mapCoreError(error)
+        }
     }
 
-    public func listDirectory(_ inode: InodeId, cookie: UInt64) throws -> DirEntryBatch {
-        try index.listDirectory(inode, cookie: cookie)
+    public func listDirectory(_ inode: InodeId, cookie: UInt64) throws -> SquashboxCore.DirEntryBatch {
+        do {
+            let batch = try provider.listDirectory(inode: inode, cookie: cookie)
+            let entries = batch.entries.map { entry in
+                SquashboxCore.DirEntry(
+                    name: entry.name,
+                    inode: entry.attributes.inode,
+                    entryType: mapEntryType(entry.attributes.entryType)
+                )
+            }
+            return SquashboxCore.DirEntryBatch(entries: entries, cookie: batch.nextCookie)
+        } catch let error as SquashboxUniFFI.CoreError {
+            throw mapCoreError(error)
+        }
     }
 
-    public func lookup(parent: InodeId, name: String) throws -> DirEntry? {
-        try index.lookupChild(parent: parent, name: name)
+    public func lookup(parent: InodeId, name: String) throws -> SquashboxCore.DirEntry? {
+        do {
+            guard let entry = try provider.lookup(parentInode: parent, name: name) else {
+                return nil
+            }
+            return SquashboxCore.DirEntry(
+                name: entry.name,
+                inode: entry.attributes.inode,
+                entryType: mapEntryType(entry.attributes.entryType)
+            )
+        } catch let error as SquashboxUniFFI.CoreError {
+            throw mapCoreError(error)
+        }
     }
 
     public func readFile(_ inode: InodeId, offset: UInt64, length: UInt64) throws -> Data {
-        let entry = try index.get(inode)
-        guard entry.attributes.isFile else {
-            throw SquashboxError.notAFile("inode \(inode)")
+        do {
+            let bytes = try provider.readFile(inode: inode, offset: offset, length: length)
+            return Data(bytes)
+        } catch let error as SquashboxUniFFI.CoreError {
+            throw mapCoreError(error)
         }
-        guard let parsedInode = inodeRefs[inode] else {
-            throw SquashboxError.notFound("no parsed inode for inode \(inode)")
-        }
-
-        return try reader.readFileData(
-            inode: parsedInode,
-            offset: offset,
-            length: length
-        )
     }
 
     public func readSymlink(_ inode: InodeId) throws -> String {
-        let entry = try index.get(inode)
-        guard let target = entry.symlinkTarget else {
-            throw SquashboxError.notASymlink("inode \(inode)")
+        do {
+            return try provider.readSymlink(inode: inode)
+        } catch let error as SquashboxUniFFI.CoreError {
+            throw mapCoreError(error)
         }
-        return target
     }
 
-    public func volumeStats() throws -> VolumeStats {
-        let stats = reader.volumeStats
-        return VolumeStats(
-            totalBytes: stats.bytesUsed,
-            totalInodes: UInt64(stats.inodeCount),
-            blockSize: stats.blockSize,
-            creationTime: stats.modTime
-        )
+    public func volumeStats() throws -> SquashboxCore.VolumeStats {
+        do {
+            let stats = try provider.volumeStats()
+            return SquashboxCore.VolumeStats(
+                totalBytes: stats.totalBytes,
+                totalInodes: stats.totalInodes,
+                blockSize: stats.blockSize,
+                creationTime: 0  // Not directly available from Rust VolumeStats
+            )
+        } catch let error as SquashboxUniFFI.CoreError {
+            throw mapCoreError(error)
+        }
+    }
+}
+
+// MARK: - Type Mapping Helpers
+
+/// Map UniFFI-generated EntryType → SquashboxCore.EntryType
+private func mapEntryType(_ et: SquashboxUniFFI.EntryType) -> SquashboxCore.EntryType {
+    switch et {
+    case .file: return .file
+    case .directory: return .directory
+    case .symlink: return .symlink
+    case .blockDevice: return .blockDevice
+    case .charDevice: return .charDevice
+    }
+}
+
+/// Map UniFFI-generated CoreError → SquashboxError
+private func mapCoreError(_ error: SquashboxUniFFI.CoreError) -> SquashboxError {
+    switch error {
+    case .NotFound(let msg):
+        return .notFound(msg)
+    case .NotADirectory(let inode):
+        return .notADirectory("inode \(inode)")
+    case .NotAFile(let inode):
+        return .notAFile("inode \(inode)")
+    case .NotASymlink(let inode):
+        return .notASymlink("inode \(inode)")
+    case .Io(let msg):
+        return .io(msg)
+    case .SquashFs(let msg):
+        return .formatError(msg)
+    case .NotSupported:
+        return .notSupported("operation")
+    case .ReadOnly:
+        return .readOnly
     }
 }

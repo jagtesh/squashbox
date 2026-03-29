@@ -198,14 +198,7 @@ private let projfsGetEnum: cprojfs_get_enum_cb = { ctx, pathPtr, enumId, searchE
         }
 
         // List all entries
-        var allEntries: [DirEntry] = []
-        var cookie: UInt64 = 0
-        repeat {
-            let batch = try driver.provider.listDirectory(inode, cookie: cookie)
-            allEntries.append(contentsOf: batch.entries)
-            if batch.isEmpty { break }
-            cookie = batch.cookie
-        } while true
+        let allEntries = try driver.provider.allEntries(inode)
 
         // Fill the buffer
         for entry in allEntries {
