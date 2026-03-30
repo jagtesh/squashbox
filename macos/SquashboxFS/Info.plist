@@ -36,7 +36,7 @@
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.filesystemprovider</string>
+        <string>com.apple.fskit.fsmodule</string>
 
         <key>NSExtensionPrincipalClass</key>
         <string>SquashboxFS.SquashboxFSExtension</string>
@@ -45,7 +45,7 @@
     <key>EXAppExtensionAttributes</key>
     <dict>
         <key>EXExtensionPointIdentifier</key>
-        <string>com.apple.filesystemprovider</string>
+        <string>com.apple.fskit.fsmodule</string>
 
         <!-- FSKit-specific attributes -->
         <key>FSShortName</key>

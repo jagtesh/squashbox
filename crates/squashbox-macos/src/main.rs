@@ -197,6 +197,19 @@ fn cmd_install(app_path: Option<PathBuf>, no_open: bool) -> anyhow::Result<()> {
     }
 
     println!("  ✓ Installed Squashbox.app to ~/Applications/");
+
+    println!("\n  Registering App Extension...");
+    let ext_path = dest.join("Contents/PlugIns/SquashboxFS.appex");
+    let ext_status = std::process::Command::new("pluginkit")
+        .arg("-a")
+        .arg(&ext_path)
+        .status()?;
+
+    if ext_status.success() {
+        println!("  ✓ App Extension registered via pluginkit");
+    } else {
+        println!("  ! Warning: App Extension registration failed");
+    }
     println!();
 
     // ── Open System Settings ──

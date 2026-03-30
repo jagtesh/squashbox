@@ -50,7 +50,7 @@ echo ""
 # ── Step 1: Build Rust static libraries ──────────────────────────
 echo "▸ Building Rust static libraries..."
 cd "$ROOT_DIR"
-cargo build -p squashbox-macos -p macos-fskit $CARGO_FLAGS
+cargo build -p squashbox-macos -p macos-fskit -p squashbox-core $CARGO_FLAGS
 
 # Find the static libraries
 LIB_SQUASHBOX_MACOS="$RUST_TARGET_DIR/libsquashbox_macos.a"
