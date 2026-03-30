@@ -25,3 +25,6 @@ crates/squashbox-core/tests/fixtures/*.sqsh
 build_errors.txt
 test_output.txt
 stress_output.txt
+
+# macOS build output
+/build/

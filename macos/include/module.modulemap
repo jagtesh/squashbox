@@ -1,0 +1,4 @@
+module SquashboxFFI {
+    header "squashbox_ffi.h"
+    export *
+}

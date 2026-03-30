@@ -4,4 +4,5 @@
 //! `macos-fskit::FsKitFileSystemSource` trait for native macOS
 //! FSKit filesystem extension support.
 
+pub mod ffi;
 pub mod fskit_source;
