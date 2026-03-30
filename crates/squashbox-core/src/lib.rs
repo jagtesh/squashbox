@@ -7,6 +7,7 @@
 
 pub mod cli;
 pub mod fmt;
+pub mod nfs;
 pub mod provider;
 pub mod squashfs;
 pub mod types;

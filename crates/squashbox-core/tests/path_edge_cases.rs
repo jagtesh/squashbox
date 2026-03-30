@@ -109,7 +109,11 @@ fn pathbuf_comparison_forward_vs_backslash() {
             _ => None,
         })
         .collect();
+    #[cfg(windows)]
     assert_eq!(fwd_names, bwd_names, "component names should be identical");
+    
+    #[cfg(not(windows))]
+    assert_ne!(fwd_names, bwd_names, "Unix treats backslashes as valid filename characters");
 }
 
 #[test]

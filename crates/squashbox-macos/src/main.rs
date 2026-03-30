@@ -27,15 +27,21 @@ enum Commands {
         /// Path to the SquashFS image file
         file: PathBuf,
     },
-    /// Mount a SquashFS image via FSKit
+    /// Mount a SquashFS image
     Mount {
+        /// Use NFS network fallback instead of FSKit
+        #[arg(long)]
+        nfs: bool,
         /// Path to the SquashFS image file
         file: PathBuf,
         /// Mount point directory
         dir: PathBuf,
     },
-    /// Unmount an FSKit filesystem
+    /// Unmount a SquashFS filesystem
     Umount {
+        /// Use NFS network fallback instead of FSKit
+        #[arg(long)]
+        nfs: bool,
         /// Mount point to unmount
         dir: PathBuf,
     },
@@ -66,19 +72,28 @@ fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("{}", e))
         }
         // Platform-specific commands
-        Commands::Mount { file, dir } => cmd_mount(&file, &dir),
-        Commands::Umount { dir } => cmd_umount(&dir),
+        Commands::Mount { file, dir, nfs } => cmd_mount(&file, &dir, nfs),
+        Commands::Umount { dir, nfs } => cmd_umount(&dir, nfs),
         Commands::Install { app_path, no_open } => cmd_install(app_path, no_open),
     }
 }
 
-/// Mount a SquashFS image via FSKit.
-///
-/// Uses the shared `validate_image()` for the common open/validate step,
-/// then proceeds with macOS-specific FSKit activation.
-fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf) -> anyhow::Result<()> {
-    let (_provider, stats) = squashbox_core::cli::validate_image(image_path)
+/// Mount a SquashFS image via FSKit or NFS.
+fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, nfs: bool) -> anyhow::Result<()> {
+    let (provider, stats) = squashbox_core::cli::validate_image(image_path)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    if nfs {
+        println!("Using High-Performance NFS Mode...");
+        
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(async {
+            let arc_provider = std::sync::Arc::new(provider);
+            squashbox_core::nfs::mount_and_serve_nfs(arc_provider, mount_point).await
+        })?;
+        
+        return Ok(());
+    }
 
     // TODO: Activate FSKit extension with the image path.
     // This requires:
@@ -98,20 +113,28 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf) -> anyhow::Result<()> 
     println!("    built and installed before mounting is available.");
     println!();
     println!("    Run 'sqb install' to install the extension.");
+    println!("    Alternatively, use NFS fallback: sqb mount --nfs <FILE> <DIR>");
 
     Ok(())
 }
 
 /// Unmount a mounted SquashFS filesystem.
-fn cmd_umount(mount_point: &PathBuf) -> anyhow::Result<()> {
+fn cmd_umount(mount_point: &PathBuf, nfs: bool) -> anyhow::Result<()> {
     if !mount_point.exists() {
         anyhow::bail!("Mount point not found: {}", mount_point.display());
     }
 
     log::info!("Unmounting: {}", mount_point.display());
 
-    let output = std::process::Command::new("diskutil")
-        .args(["unmount", &mount_point.to_string_lossy()])
+    let program = if nfs { "umount" } else { "diskutil" };
+    let args = if nfs { 
+        vec![mount_point.to_string_lossy().to_string()] 
+    } else { 
+        vec!["unmount".into(), mount_point.to_string_lossy().to_string()] 
+    };
+
+    let output = std::process::Command::new(program)
+        .args(&args)
         .output()?;
 
     if output.status.success() {

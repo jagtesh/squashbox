@@ -25,7 +25,12 @@ ubuntu_stress = []
 [dependencies]
 backhand = { workspace = true }
 thiserror = { workspace = true }
+anyhow = { workspace = true }
 log = { workspace = true }
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "macros", "signal", "time"] }
+nfsserve = "0.10.2"
+async-trait = "0.1"
+libc = "0.2"
 
 [dev-dependencies]
 tempfile = { workspace = true }
