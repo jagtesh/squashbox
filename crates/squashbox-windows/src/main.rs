@@ -76,11 +76,11 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, force: bool) -> anyhow
         std::fs::create_dir_all(mount_point)?;
     }
 
-    // Shared validation
-    let (provider, _stats) = squashbox_core::cli::validate_image(image_path)
+    // Shared validation — format-agnostic (SquashFS, ZIP, etc.)
+    let (provider, _stats) = squashbox_core::cli::open_image(image_path)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let provider: Arc<dyn VirtualFsProvider> = Arc::new(provider);
+    let provider: Arc<dyn VirtualFsProvider> = provider.into();
     let source = squashbox_windows::projfs_source::SquashboxProjFsSource::new(provider);
 
     log::info!("Starting ProjFS at: {}", mount_point.display());
@@ -154,41 +154,36 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, force: bool) -> anyhow
 /// This function is **idempotent**: if the directory is already clean (no
 /// reparse point), it is a no-op.
 fn cmd_fix(dir: &PathBuf) -> anyhow::Result<()> {
-    use std::os::windows::fs::MetadataExt;
-    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
-
     if !dir.exists() {
         std::fs::create_dir_all(dir)?;
         println!("✓ Created clean mount directory: {}", dir.display());
         return Ok(());
     }
 
-    let attrs = std::fs::metadata(dir)
-        .map(|m| m.file_attributes())
-        .unwrap_or(0);
-
-    if attrs & FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-        println!("✓ Directory is already clean: {}", dir.display());
-        return Ok(());
-    }
-
-    println!("Removing stale ProjFS reparse point from: {}", dir.display());
-
+    // Don't rely on FILE_ATTRIBUTE_REPARSE_POINT from metadata — ProjFS
+    // directory reparse points (tag 0x9000001c) are not always visible
+    // in the metadata attributes. Instead, try to query+delete directly.
     match delete_reparse_point(dir) {
         Ok(()) => {
             println!("✓ Reparse point removed: {}", dir.display());
         }
         Err(e) => {
-            eprintln!("Warning: FSCTL_DELETE_REPARSE_POINT failed: {}", e);
-            eprintln!("Falling back to directory cleanup...");
-            std::fs::remove_dir_all(dir)
-                .map_err(|e| anyhow::anyhow!(
-                    "Could not remove '{}': {}\n\
-                     Make sure no processes have the directory open and try again.",
-                    dir.display(), e
-                ))?;
-            std::fs::create_dir_all(dir)?;
-            println!("✓ Directory cleaned and ready for mounting: {}", dir.display());
+            let msg = e.to_string();
+            if msg.contains("4390") {
+                // ERROR_NOT_A_REPARSE_POINT (4390) — directory is already clean
+                println!("✓ Directory is already clean: {}", dir.display());
+            } else {
+                eprintln!("Warning: FSCTL_DELETE_REPARSE_POINT failed: {}", e);
+                eprintln!("Falling back to directory cleanup...");
+                std::fs::remove_dir_all(dir)
+                    .map_err(|e| anyhow::anyhow!(
+                        "Could not remove '{}': {}\n\
+                         Make sure no processes have the directory open and try again.",
+                        dir.display(), e
+                    ))?;
+                std::fs::create_dir_all(dir)?;
+                println!("✓ Directory cleaned and ready for mounting: {}", dir.display());
+            }
         }
     }
 

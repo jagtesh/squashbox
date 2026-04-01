@@ -321,18 +321,4 @@ pub fn open_image(
     Ok((provider, stats))
 }
 
-/// Validate that a SquashFS image can be opened, returning summary info.
-///
-/// **Deprecated:** Use `open_image()` for format-agnostic opening.
-/// Kept for backward compatibility with callers that need `SquashFsProvider` directly.
-pub fn validate_image(
-    image_path: &Path,
-) -> Result<(SquashFsProvider, VolumeStats), Box<dyn std::error::Error>> {
-    if !image_path.exists() {
-        return Err(format!("Image file not found: {}", image_path.display()).into());
-    }
 
-    let provider = SquashFsProvider::open(image_path)?;
-    let stats = provider.volume_stats()?;
-    Ok((provider, stats))
-}

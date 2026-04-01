@@ -6,7 +6,8 @@
 use crate::provider::VirtualFsProvider;
 use crate::types::*;
 use std::collections::HashMap;
-use std::io::Read;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::{Component, Path, PathBuf};
 
 /// Default page size for directory listing pagination.
@@ -83,10 +84,13 @@ impl InodeIndex {
 /// 2. The struct is never partially moved
 /// 3. Both fields are dropped together when the struct is dropped
 pub struct SquashFsProvider {
-    /// The raw image bytes (must outlive `reader`).
-    _image_data: Vec<u8>,
+    /// The raw image bytes — only populated when created via `from_bytes()`.
+    /// When created via `open()`, the backhand reader owns a `BufReader<File>`
+    /// directly, so no image data is held in memory.
+    _image_data: Option<Vec<u8>>,
     /// The backhand filesystem reader.
-    /// Uses a raw pointer approach: reader borrows from _image_data.
+    /// Holds either a `BufReader<File>` (file-backed) or a `Cursor<&[u8]>`
+    /// (in-memory), both behind backhand's internal `Mutex<Box<dyn BufReadSeek>>`.
     reader: backhand::FilesystemReader<'static>,
     /// Precomputed inode index (immutable after construction).
     index: InodeIndex,
@@ -109,20 +113,29 @@ impl std::fmt::Debug for SquashFsProvider {
 impl SquashFsProvider {
     /// Open a SquashFS image file and build the inode index.
     ///
-    /// This reads the entire image into memory and walks the directory tree
-    /// to build an O(1) inode lookup table.
+    /// The image is **not** loaded into memory. Instead, a `BufReader<File>`
+    /// is passed directly to backhand, which reads only the superblock and
+    /// directory metadata at parse time. Individual file data blocks are
+    /// decompressed on-demand via seeks when `read_file()` is called.
     ///
     /// # Errors
     ///
-    /// Returns `CoreError::Io` if the file cannot be read.
+    /// Returns `CoreError::Io` if the file cannot be opened.
     /// Returns `CoreError::SquashFs` if the image is not valid SquashFS.
     pub fn open(image_path: &Path) -> CoreResult<Self> {
-        // 1. Read the image file into memory
-        let image_data = std::fs::read(image_path).map_err(|e| {
-            CoreError::Io(format!("failed to read {}: {e}", image_path.display()))
+        let file = File::open(image_path).map_err(|e| {
+            CoreError::Io(format!("failed to open {}: {e}", image_path.display()))
         })?;
+        let buf_reader = BufReader::new(file);
 
-        Self::from_bytes(image_data)
+        let reader = backhand::FilesystemReader::from_reader(buf_reader)?;
+        let index = Self::build_index(&reader)?;
+
+        Ok(Self {
+            _image_data: None,
+            reader,
+            index,
+        })
     }
 
     /// Create a provider from raw image bytes (useful for testing).
@@ -141,7 +154,7 @@ impl SquashFsProvider {
         let index = Self::build_index(&reader)?;
 
         Ok(Self {
-            _image_data: image_data,
+            _image_data: Some(image_data),
             reader,
             index,
         })
