@@ -78,6 +78,25 @@ Press **Ctrl+C** to unmount. The mount directory is left clean automatically.
 
 ProjFS marks a mount directory with a special filesystem tag ("reparse point"). On a clean Ctrl+C exit Squashbox removes it. If the process was killed abruptly, the tag is left behind and blocks the next mount. `--force` detects this tag and removes it before mounting. It is a no-op on a clean directory, so it is always safe to use.
 
+## Experimental: Native macOS FSKit Extension
+
+In addition to the zero-install NFS fallback, Squashbox includes an experimental native **FSKit File System Extension** for macOS 15.4 and later.
+
+To build and install the FSKit extension:
+```bash
+./scripts/build-macos.sh --release
+target/release/sqb install
+```
+
+**⚠️ Important Local Testing Requirement:**
+By default, the build script uses an ad-hoc signature (`-`). However, macOS's `fskitd` daemon strictly requires all FSKit App Extensions to be cryptographically signed with a valid **Apple Developer Team ID**—even with System Integrity Protection (SIP) disabled. If you attempt to turn on the extension in System Settings with an ad-hoc signature, the toggle will silently revert back to "off" (yielding an `ENOENT: retrieving team ID` error in the system logs).
+
+To test the extension locally, you must have an Xcode Apple Development certificate in your keychain. The `build-macos.sh` script automatically detects and uses your personal "Apple Development" identity to embed a valid Team ID. Once installed:
+1. Open **System Settings → General → Login Items & Extensions → File System Extensions**.
+2. Toggle on "SquashboxFS".
+
+*Note: FSKit development is strictly sandboxed. The host app (`Squashbox.app`) must also carry the `com.apple.security.app-sandbox` entitlement, which the build script automatically applies.*
+
 ## Supported image formats
 
 | Format     | Supported |

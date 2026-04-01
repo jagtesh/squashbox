@@ -13,7 +13,7 @@
     <string>SquashboxFS</string>
 
     <key>CFBundleIdentifier</key>
-    <string>com.squashbox.fs.squashfs</string>
+    <string>com.squashbox.app.squashfs</string>
 
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
@@ -27,40 +27,33 @@
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
 
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+        <string>MacOSX</string>
+    </array>
+
     <key>CFBundleVersion</key>
     <string>1</string>
-
-    <key>LSMinimumSystemVersion</key>
-    <string>15.4</string>
-
-    <key>NSExtension</key>
-    <dict>
-        <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.fskit.fsmodule</string>
-
-        <key>NSExtensionPrincipalClass</key>
-        <string>SquashboxFS.SquashboxFSExtension</string>
-    </dict>
 
     <key>EXAppExtensionAttributes</key>
     <dict>
         <key>EXExtensionPointIdentifier</key>
         <string>com.apple.fskit.fsmodule</string>
 
-        <!-- FSKit-specific attributes -->
+        <key>EXExtensionPrincipalClass</key>
+        <string>SquashboxFS.SquashboxFSExtension</string>
+
         <key>FSShortName</key>
         <string>squashfs</string>
 
-        <key>FSMediaTypes</key>
-        <array>
-            <string>public.data</string>
-        </array>
-
-        <key>FSBlockDeviceSupport</key>
+        <key>FSSupportsBlockResources</key>
         <false/>
 
-        <key>FSUsesPassiveFileSources</key>
+        <key>FSSupportsServerURLs</key>
         <false/>
     </dict>
+
+    <key>LSMinimumSystemVersion</key>
+    <string>15.4</string>
 </dict>
 </plist>

@@ -190,25 +190,27 @@ fn cmd_install(app_path: Option<PathBuf>, no_open: bool) -> anyhow::Result<()> {
         );
     }
 
-    // ── Install to ~/Applications/ ──
-    let home = std::env::var("HOME")
-        .map_err(|_| anyhow::anyhow!("$HOME not set"))?;
-    let dest_dir = PathBuf::from(&home).join("Applications");
+    // ── Install to /Applications/ ──
+    // NOTE: fskitd runs as root and cannot resolve bundle URLs in user
+    // home directories (~/Applications). The app MUST be installed to
+    // /Applications/ for the FSKit extension toggle to work.
+    let dest_dir = PathBuf::from("/Applications");
     let dest = dest_dir.join("Squashbox.app");
-
-    std::fs::create_dir_all(&dest_dir)?;
 
     // Remove old installation if present
     if dest.exists() {
         println!("  Removing previous installation...");
-        std::fs::remove_dir_all(&dest)?;
+        let _ = std::process::Command::new("sudo")
+            .args(["rm", "-rf"])
+            .arg(&dest)
+            .status();
     }
 
     println!("  Installing to: {}", dest.display());
 
-    // Use ditto for a proper macOS bundle copy (preserves resource forks, etc.)
-    let output = std::process::Command::new("ditto")
-        .args([
+    // Use sudo ditto for a proper macOS bundle copy to /Applications/
+    let output = std::process::Command::new("sudo")
+        .args(["ditto",
             source.to_str().unwrap(),
             dest.to_str().unwrap(),
         ])
@@ -219,7 +221,7 @@ fn cmd_install(app_path: Option<PathBuf>, no_open: bool) -> anyhow::Result<()> {
         anyhow::bail!("ditto failed: {}", stderr.trim());
     }
 
-    println!("  ✓ Installed Squashbox.app to ~/Applications/");
+    println!("  ✓ Installed Squashbox.app to /Applications/");
 
     println!("\n  Registering App Extension...");
     let ext_path = dest.join("Contents/PlugIns/SquashboxFS.appex");

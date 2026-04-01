@@ -129,18 +129,28 @@ echo "  ✓ Host app Info.plist"
 # ── Step 5: Code sign ────────────────────────────────────────────
 echo "▸ Code signing..."
 
+# Find available signing identity (prefer Apple Development)
+SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep -E "Apple Development|Mac Developer|Developer ID Application" | head -n 1 | awk -F'"' '{print $2}')
+if [[ -z "$SIGNING_IDENTITY" ]]; then
+    SIGNING_IDENTITY="-"
+    echo "  ⚠ No Apple Developer identity found. Using ad-hoc signature (-)"
+else
+    echo "  ✓ Found signing identity: $SIGNING_IDENTITY"
+fi
+
 # Sign the extension first (inner → outer)
-codesign --force --sign - \
+codesign --force --sign "$SIGNING_IDENTITY" \
     --entitlements "$ROOT_DIR/macos/SquashboxFS/SquashboxFS.entitlements" \
     "$BUILD_DIR/Squashbox.app/Contents/PlugIns/SquashboxFS.appex" \
-    2>/dev/null || echo "  ⚠ Extension code signing skipped (ad-hoc)"
+    2>/dev/null || echo "  ⚠ Extension code signing failed"
 
 # Sign the host app
-codesign --force --sign - \
+codesign --force --sign "$SIGNING_IDENTITY" \
+    --entitlements "$ROOT_DIR/macos/Squashbox/Squashbox.entitlements" \
     "$BUILD_DIR/Squashbox.app" \
-    2>/dev/null || echo "  ⚠ App code signing skipped (ad-hoc)"
+    2>/dev/null || echo "  ⚠ App code signing failed"
 
-echo "  ✓ Ad-hoc code signed"
+echo "  ✓ Code signed with: $SIGNING_IDENTITY"
 
 # ── Done ─────────────────────────────────────────────────────────
 echo ""
@@ -153,7 +163,7 @@ echo ""
 echo "  To install:"
 echo "    sqb install"
 echo "    — or —"
-echo "    cp -R $BUILD_DIR/Squashbox.app ~/Applications/"
+echo "    sudo cp -R $BUILD_DIR/Squashbox.app /Applications/"
 echo ""
 echo "  Then enable in:"
 echo "    System Settings → General → Login Items → File System Extensions"
