@@ -78,17 +78,19 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
-/// Mount a SquashFS image via FSKit or NFS.
+/// Mount a filesystem image (SquashFS or ZIP) via FSKit or NFS.
 fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, nfs: bool) -> anyhow::Result<()> {
-    let (provider, stats) = squashbox_core::cli::validate_image(image_path)
+    let (provider, stats) = squashbox_core::cli::open_image(image_path)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if nfs {
-        println!("Using High-Performance NFS Mode...");
+        let format = squashbox_core::cli::detect_format(image_path)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        println!("Mounting {} image via NFS...", format);
         
         let rt = tokio::runtime::Runtime::new()?;
         rt.block_on(async {
-            let arc_provider = std::sync::Arc::new(provider);
+            let arc_provider: std::sync::Arc<dyn squashbox_core::VirtualFsProvider> = provider.into();
             squashbox_core::nfs::mount_and_serve_nfs(arc_provider, mount_point).await
         })?;
         

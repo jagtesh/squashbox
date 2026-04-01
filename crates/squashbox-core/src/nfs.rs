@@ -5,11 +5,11 @@ use nfsserve::nfs::*;
 use nfsserve::vfs::{DirEntry, NFSFileSystem, ReadDirResult, VFSCapabilities};
 use std::sync::Arc;
 
-pub struct NfsFsWrapper<T: VirtualFsProvider> {
+pub struct NfsFsWrapper<T: VirtualFsProvider + ?Sized> {
     pub provider: Arc<T>,
 }
 
-impl<T: VirtualFsProvider> NfsFsWrapper<T> {
+impl<T: VirtualFsProvider + ?Sized> NfsFsWrapper<T> {
     pub fn new(provider: Arc<T>) -> Self {
         Self { provider }
     }
@@ -42,7 +42,7 @@ impl<T: VirtualFsProvider> NfsFsWrapper<T> {
 }
 
 #[async_trait]
-impl<T: VirtualFsProvider + 'static> NFSFileSystem for NfsFsWrapper<T> {
+impl<T: VirtualFsProvider + ?Sized + 'static> NFSFileSystem for NfsFsWrapper<T> {
     fn capabilities(&self) -> VFSCapabilities {
         VFSCapabilities::ReadOnly
     }
@@ -169,46 +169,63 @@ use std::path::Path;
 use nfsserve::tcp::{NFSTcp, NFSTcpListener};
 
 /// Spawns the NFS server and mounts it locally.
-pub async fn mount_and_serve_nfs<T: VirtualFsProvider + 'static>(
+pub async fn mount_and_serve_nfs<T: VirtualFsProvider + ?Sized + 'static>(
     provider: Arc<T>,
     mount_point: &Path,
 ) -> anyhow::Result<()> {
+    if !mount_point.exists() {
+        anyhow::bail!("Mount point '{}' does not exist. Please create the directory first.", mount_point.display());
+    }
+    if !mount_point.is_dir() {
+        anyhow::bail!("Mount point '{}' is not a directory.", mount_point.display());
+    }
+
     let fs = NfsFsWrapper::new(provider);
     let listener = NFSTcpListener::bind("127.0.0.1:0", fs).await?;
     let port = listener.get_listen_port();
 
     log::info!("NFS Server listening on 127.0.0.1:{}", port);
 
+    let server_handle = tokio::spawn(async move {
+        let _ = listener.handle_forever().await;
+    });
+
+    // Yield back to the tokio scheduler so the server task can actually begin
+    // listening before we block the current thread with a synchronous OS command.
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
     let mount_point_str = mount_point.to_string_lossy();
     
     #[cfg(target_os = "macos")]
     {
-        log::info!("Executing native mount: mount -t nfs -o port={},nolocks,locallocks,nfc nfs://127.0.0.1/ {}", port, mount_point_str);
+        log::info!("Executing native mount: mount -t nfs -o port={},mountport={},tcp,nolocks,locallocks,nfc nfs://127.0.0.1/ {}", port, port, mount_point_str);
         
-        let status = std::process::Command::new("mount")
+        let status = tokio::process::Command::new("mount")
             .args([
                 "-t", "nfs",
-                "-o", &format!("port={},nolocks,locallocks,nfc", port),
+                "-o", &format!("port={},mountport={},tcp,nolocks,locallocks,nfc", port, port),
                 "127.0.0.1:/",
                 mount_point_str.as_ref()
             ])
-            .status()?;
+            .status()
+            .await?;
             
         if !status.success() {
-            anyhow::bail!("Failed to mount NFS natively on macOS");
+            anyhow::bail!("Failed to mount NFS natively on macOS. Ensure the mount point is not already in use and you have proper permissions.");
         }
     }
     
     #[cfg(target_os = "linux")]
     {
-        let status = std::process::Command::new("mount")
+        let status = tokio::process::Command::new("mount")
             .args([
                 "-t", "nfs",
                 "-o", &format!("port={},nolock,vers=3,tcp,mountport={}", port, port),
                 "127.0.0.1:/",
                 mount_point_str.as_ref()
             ])
-            .status()?;
+            .status()
+            .await?;
             
         if !status.success() {
             anyhow::bail!("Failed to mount NFS natively on Linux");
@@ -218,13 +235,14 @@ pub async fn mount_and_serve_nfs<T: VirtualFsProvider + 'static>(
     #[cfg(target_os = "windows")]
     {
         log::info!("Executing native mount: mount -o mtype=hard,nolock 127.0.0.1:/ {}", mount_point_str);
-        let status = std::process::Command::new("mount")
+        let status = tokio::process::Command::new("mount")
             .args([
                 "-o", "mtype=hard,nolock",
                 "127.0.0.1:/",
                 mount_point_str.as_ref()
             ])
-            .status()?;
+            .status()
+            .await?;
             
         if !status.success() {
             anyhow::bail!("Failed to mount NFS natively on Windows. Please ensure 'Client for NFS' is enabled in Windows Features.");
@@ -233,14 +251,10 @@ pub async fn mount_and_serve_nfs<T: VirtualFsProvider + 'static>(
 
     println!("Mounted natively via NFS on {}. Press Ctrl+C to unmount.", mount_point_str);
 
-    let server_handle = tokio::spawn(async move {
-        let _ = listener.handle_forever().await;
-    });
-
     tokio::signal::ctrl_c().await?;
     println!("\nUnmounting...");
 
-    let _ = std::process::Command::new("umount").arg(mount_point_str.as_ref()).status();
+    let _ = tokio::process::Command::new("umount").arg(mount_point_str.as_ref()).status().await;
 
     server_handle.abort();
 

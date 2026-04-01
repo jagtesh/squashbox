@@ -32,12 +32,61 @@ use crate::fmt::Table;
 use crate::provider::VirtualFsProvider;
 use crate::types::*;
 use crate::SquashFsProvider;
+use crate::ZipFsProvider;
 use std::path::Path;
+
+/// Detected image/archive format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageFormat {
+    SquashFS,
+    Zip,
+}
+
+impl std::fmt::Display for ImageFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImageFormat::SquashFS => write!(f, "SquashFS"),
+            ImageFormat::Zip => write!(f, "ZIP"),
+        }
+    }
+}
+
+/// Detect the image format from magic bytes at the start of the file.
+///
+/// - SquashFS: magic `hsqs` (0x73717368) at byte 0
+/// - ZIP: magic `PK\x03\x04` at byte 0 (local file header)
+pub fn detect_format(path: &Path) -> Result<ImageFormat, Box<dyn std::error::Error>> {
+    let mut file = std::fs::File::open(path)?;
+    let mut magic = [0u8; 4];
+    use std::io::Read;
+    file.read_exact(&mut magic)?;
+
+    if &magic == b"hsqs" {
+        Ok(ImageFormat::SquashFS)
+    } else if &magic == b"PK\x03\x04" {
+        Ok(ImageFormat::Zip)
+    } else {
+        // Fallback: try extension-based detection
+        let ext = path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        match ext.as_str() {
+            "sqsh" | "squashfs" | "sqfs" | "sfs" => Ok(ImageFormat::SquashFS),
+            "zip" | "jar" | "war" | "ear" | "apk" => Ok(ImageFormat::Zip),
+            _ => Err(format!(
+                "Unknown image format (magic: {:02x}{:02x}{:02x}{:02x}). \
+                 Supported: SquashFS (.sqsh), ZIP (.zip)",
+                magic[0], magic[1], magic[2], magic[3]
+            ).into()),
+        }
+    }
+}
 
 /// Table width used by all CLI output.
 const TABLE_WIDTH: usize = 52;
 
-/// Print detailed information about a SquashFS image.
+/// Print detailed information about a filesystem image.
 ///
 /// This is the canonical implementation of `sqb image`. It uses only
 /// `VirtualFsProvider` APIs and is fully platform-agnostic.
@@ -57,6 +106,7 @@ pub fn cmd_image(image_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     let file_meta = std::fs::metadata(image_path)?;
     let file_size = file_meta.len();
+    let format = detect_format(image_path)?;
 
     // ── Header ──
     let header = Table::new(TABLE_WIDTH)
@@ -65,6 +115,7 @@ pub fn cmd_image(image_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     print!("{}", header);
     println!();
     println!("  File:       {}", image_path.display());
+    println!("  Format:     {}", format);
     println!(
         "  File size:  {} bytes ({:.1} MB)",
         file_size,
@@ -75,13 +126,13 @@ pub fn cmd_image(image_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     // ── Open image ──
     print!("  Opening image... ");
     let start = std::time::Instant::now();
-    let provider = SquashFsProvider::open(image_path)?;
+    let (provider, _) = open_image(image_path)?;
     let open_time = start.elapsed();
     println!("done in {:.2?}", open_time);
     println!();
 
     // ── Volume stats ──
-    let stats = provider.volume_stats()?;
+    let stats = provider.volume_stats().map_err(|e| -> Box<dyn std::error::Error> { format!("{e}").into() })?;
     let volume_table = Table::new(TABLE_WIDTH)
         .section("Volume Stats")
         .kv("Total inodes", &format!("{}", stats.total_inodes))
@@ -238,12 +289,42 @@ pub fn cmd_image(image_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Validate that a SquashFS image can be opened, returning summary info.
+/// Open an image/archive file, auto-detecting the format.
 ///
-/// This is the shared validation step used by both platform `mount` commands
-/// before they proceed with platform-specific mounting logic.
+/// This is the shared entry point used by both platform `mount` commands
+/// and the `image` inspector. It returns a trait object so callers don't
+/// need to know the concrete provider type.
 ///
 /// Returns `(provider, volume_stats)` on success.
+pub fn open_image(
+    image_path: &Path,
+) -> Result<(Box<dyn VirtualFsProvider>, VolumeStats), Box<dyn std::error::Error>> {
+    if !image_path.exists() {
+        return Err(format!("Image file not found: {}", image_path.display()).into());
+    }
+
+    let format = detect_format(image_path)?;
+    log::info!("Detected format: {} for {}", format, image_path.display());
+
+    let provider: Box<dyn VirtualFsProvider> = match format {
+        ImageFormat::SquashFS => Box::new(SquashFsProvider::open(image_path)?),
+        ImageFormat::Zip => Box::new(ZipFsProvider::open(image_path)?),
+    };
+
+    let stats = provider.volume_stats().map_err(|e| -> Box<dyn std::error::Error> { format!("{e}").into() })?;
+    log::info!(
+        "Image opened: {} inodes, {} bytes",
+        stats.total_inodes,
+        stats.total_bytes,
+    );
+
+    Ok((provider, stats))
+}
+
+/// Validate that a SquashFS image can be opened, returning summary info.
+///
+/// **Deprecated:** Use `open_image()` for format-agnostic opening.
+/// Kept for backward compatibility with callers that need `SquashFsProvider` directly.
 pub fn validate_image(
     image_path: &Path,
 ) -> Result<(SquashFsProvider, VolumeStats), Box<dyn std::error::Error>> {
@@ -251,15 +332,7 @@ pub fn validate_image(
         return Err(format!("Image file not found: {}", image_path.display()).into());
     }
 
-    log::info!("Opening SquashFS image: {}", image_path.display());
     let provider = SquashFsProvider::open(image_path)?;
-
     let stats = provider.volume_stats()?;
-    log::info!(
-        "Image opened: {} inodes, {} bytes",
-        stats.total_inodes,
-        stats.total_bytes,
-    );
-
     Ok((provider, stats))
 }

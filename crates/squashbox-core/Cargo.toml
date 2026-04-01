@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Platform-agnostic SquashFS virtual filesystem provider"
+description = "Platform-agnostic virtual filesystem provider (SquashFS, ZIP)"
 
 [lib]
 name = "squashbox_core"
@@ -27,10 +27,11 @@ backhand = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
-tokio = { version = "1.0", features = ["rt-multi-thread", "net", "macros", "signal", "time"] }
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "macros", "signal", "time", "process"] }
 nfsserve = "0.10.2"
 async-trait = "0.1"
 libc = "0.2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
