@@ -6,7 +6,7 @@ Squashbox uses [Windows Projected File System (ProjFS)](https://learn.microsoft.
 
 ## What is SquashFS?
 
-SquashFS is a compressed, read-only filesystem used everywhere in the Linux world: Ubuntu and Debian live ISOs, Docker image layers, embedded firmware images, OpenWRT router firmware, Raspberry Pi OS images, and more. Until now, accessing those images natively without pulling a full VM or installing 3rd-party kernel extensions meant extracting everything to disk first. Squashbox mounts them in-place — files are decompressed on demand, only when you read them.
+SquashFS is a compressed, read-only filesystem used everywhere in the Linux world: Ubuntu and Debian live ISOs, Docker image layers, embedded firmware images, OpenWRT router firmware, Raspberry Pi OS images, and more. Until now, accessing those images natively without pulling a full VM or installing 3rd-party kernel extensions meant extracting everything to disk first. Squashbox mounts them in-place — files are decompressed on demand, only when you read them. Support for mounting standard **ZIP archives** is also included!
 
 ## Zero-Install Architecture
 
@@ -64,7 +64,7 @@ sqb image <FILE>
 
 Make the image appear as a folder. The command blocks until you press Ctrl+C:
 
-```
+```bash
 # Windows (ProjFS)
 sqb mount ubuntu.squashfs C:\mnt\ubuntu
 
@@ -72,7 +72,20 @@ sqb mount ubuntu.squashfs C:\mnt\ubuntu
 sqb mount --nfs ubuntu.squashfs /mnt/ubuntu
 ```
 
-Press **Ctrl+C** to unmount. The mount directory is left clean automatically.
+#### macOS Dynamic Auto-Mounting
+On macOS, the mount directory argument is optional. If omitted, Squashbox will automatically:
+1. Create a persistent mount point at `~/.squashbox/mounts/<filename>`.
+2. Span an ephemeral NFS server on a dynamically allocated TCP port (meaning you can run an **unlimited number of concurrent mounts** without port collisions).
+3. Handshake directly with the native macOS mount daemon to bypass external portmapper lookups.
+4. Open the mounted directory in Finder instantly, providing a seamless experience identical to native `.dmg` files.
+
+```bash
+# Automatically detects SquashFS vs ZIP, mounts, and pops open in Finder
+sqb mount --nfs my_project.zip
+sqb mount --nfs firmware.sqsh
+```
+
+Press **Ctrl+C** to cleanly unmount. The mount directory is automatically cleaned up.
 
 ### What `--force` does (Windows only)
 

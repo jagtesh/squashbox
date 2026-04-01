@@ -34,8 +34,8 @@ enum Commands {
         nfs: bool,
         /// Path to the SquashFS image file
         file: PathBuf,
-        /// Mount point directory
-        dir: PathBuf,
+        /// Mount point directory (optional; will dynamically create and pop open if omitted)
+        dir: Option<PathBuf>,
     },
     /// Unmount a SquashFS filesystem
     Umount {
@@ -72,27 +72,53 @@ fn main() -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("{}", e))
         }
         // Platform-specific commands
-        Commands::Mount { file, dir, nfs } => cmd_mount(&file, &dir, nfs),
+        Commands::Mount { file, dir, nfs } => cmd_mount(&file, dir.as_deref(), nfs),
         Commands::Umount { dir, nfs } => cmd_umount(&dir, nfs),
         Commands::Install { app_path, no_open } => cmd_install(app_path, no_open),
     }
 }
 
 /// Mount a filesystem image (SquashFS or ZIP) via FSKit or NFS.
-fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, nfs: bool) -> anyhow::Result<()> {
+fn cmd_mount(image_path: &PathBuf, mount_point: Option<&std::path::Path>, nfs: bool) -> anyhow::Result<()> {
     let (provider, stats) = squashbox_core::cli::open_image(image_path)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    let auto_open = mount_point.is_none();
+    let actual_mount_point = if let Some(p) = mount_point {
+        p.to_path_buf()
+    } else {
+        let file_stem = image_path.file_stem().unwrap_or(std::ffi::OsStr::new("sqb_mount")).to_string_lossy();
+        let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let mut tmp = std::path::PathBuf::from(home_dir);
+        tmp.push(".squashbox");
+        tmp.push("mounts");
+        tmp.push(file_stem.as_ref());
+        std::fs::create_dir_all(&tmp).map_err(|e| anyhow::anyhow!("Failed to create dynamic mount point: {}", e))?;
+        tmp
+    };
 
     if nfs {
         let format = squashbox_core::cli::detect_format(image_path)
             .map_err(|e| anyhow::anyhow!("{}", e))?;
         println!("Mounting {} image via NFS...", format);
         
+        if auto_open {
+            let p = actual_mount_point.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                let _ = std::process::Command::new("open").arg(p).status();
+            });
+        }
+        
         let rt = tokio::runtime::Runtime::new()?;
         rt.block_on(async {
             let arc_provider: std::sync::Arc<dyn squashbox_core::VirtualFsProvider> = provider.into();
-            squashbox_core::nfs::mount_and_serve_nfs(arc_provider, mount_point).await
+            squashbox_core::nfs::mount_and_serve_nfs(arc_provider, &actual_mount_point).await
         })?;
+        
+        if auto_open {
+            let _ = std::fs::remove_dir(&actual_mount_point);
+        }
         
         return Ok(());
     }
@@ -106,7 +132,7 @@ fn cmd_mount(image_path: &PathBuf, mount_point: &PathBuf, nfs: bool) -> anyhow::
     println!("SquashFS image validated successfully.");
     println!();
     println!("  Image:   {}", image_path.display());
-    println!("  Mount:   {}", mount_point.display());
+    println!("  Mount:   {}", actual_mount_point.display());
     println!("  Inodes:  {}", stats.total_inodes);
     println!("  Size:    {} bytes", stats.total_bytes);
     println!();

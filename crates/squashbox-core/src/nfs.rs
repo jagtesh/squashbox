@@ -198,13 +198,13 @@ pub async fn mount_and_serve_nfs<T: VirtualFsProvider + ?Sized + 'static>(
     
     #[cfg(target_os = "macos")]
     {
-        log::info!("Executing native mount: mount -t nfs -o port={},mountport={},tcp,nolocks,locallocks,nfc nfs://127.0.0.1/ {}", port, port, mount_point_str);
+        log::info!("Executing native mount: mount -t nfs -o port={},mountport={},tcp,nolocks,locallocks,nfc nfs://localhost/ {}", port, port, mount_point_str);
         
         let status = tokio::process::Command::new("mount")
             .args([
                 "-t", "nfs",
                 "-o", &format!("port={},mountport={},tcp,nolocks,locallocks,nfc", port, port),
-                "127.0.0.1:/",
+                "localhost:/",
                 mount_point_str.as_ref()
             ])
             .status()
@@ -221,7 +221,7 @@ pub async fn mount_and_serve_nfs<T: VirtualFsProvider + ?Sized + 'static>(
             .args([
                 "-t", "nfs",
                 "-o", &format!("port={},nolock,vers=3,tcp,mountport={}", port, port),
-                "127.0.0.1:/",
+                "localhost:/",
                 mount_point_str.as_ref()
             ])
             .status()
@@ -234,11 +234,11 @@ pub async fn mount_and_serve_nfs<T: VirtualFsProvider + ?Sized + 'static>(
     
     #[cfg(target_os = "windows")]
     {
-        log::info!("Executing native mount: mount -o mtype=hard,nolock 127.0.0.1:/ {}", mount_point_str);
+        log::info!("Executing native mount: mount -o mtype=hard,nolock localhost:/ {}", mount_point_str);
         let status = tokio::process::Command::new("mount")
             .args([
                 "-o", "mtype=hard,nolock",
-                "127.0.0.1:/",
+                "localhost:/",
                 mount_point_str.as_ref()
             ])
             .status()

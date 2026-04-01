@@ -846,7 +846,7 @@ checksum = "98c23545df7ecf1b16c303910a69b079e8e251d60f7dd2cc9b4177f2afaf1746"
 
 [[package]]
 name = "macos-fskit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "block2",
  "libc",
@@ -1362,7 +1362,7 @@ checksum = "8b8a731ed60e89177c8a7ab05fe0f1511cedd3e70e773f288f9de33a9cfdc21e"
 
 [[package]]
 name = "squashbox-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1378,7 +1378,7 @@ dependencies = [
 
 [[package]]
 name = "squashbox-macos"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1393,7 +1393,7 @@ dependencies = [
 
 [[package]]
 name = "squashbox-uniffi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "squashbox-core",
  "thiserror 2.0.18",
@@ -1402,7 +1402,7 @@ dependencies = [
 
 [[package]]
 name = "squashbox-windows"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
